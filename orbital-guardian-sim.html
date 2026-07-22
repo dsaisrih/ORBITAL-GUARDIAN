@@ -1,0 +1,3533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Orbital Guardian – Live Earth Simulation</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --cyan: #3b9eff;
+      --cyan2: rgba(59, 158, 255, 0.18);
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --bg: #0a0f1e;
+      --panel: rgba(12, 18, 38, 0.98);
+      --border: rgba(59, 158, 255, 0.18);
+      --border2: rgba(59, 158, 255, 0.36);
+      --text: #e2e8f0;
+      --muted: #94a7bf;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --mono: 'JetBrains Mono', monospace;
+      --hud: 'Outfit', sans-serif;
+      --body: 'Inter', sans-serif;
+      --radius: 10px;
+      --transition: 0.25s ease;
+    }
+
+    [data-theme="light"] {
+      --bg: #f1f5f9;
+      --panel: rgba(255, 255, 255, 0.95);
+      --border: rgba(59, 158, 255, 0.15);
+      --border2: rgba(59, 158, 255, 0.35);
+      --text: #1e293b;
+      --muted: #64748b;
+      --card-bg: rgba(241, 245, 249, 0.85);
+      --cyan: #2563eb;
+      --cyan2: rgba(37, 99, 235, 0.08);
+      --green: #16a34a;
+      --amber: #d97706;
+      --red: #dc2626;
+      --purple: #7c3aed;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--body);
+      color: var(--text);
+      transition: background var(--transition), color var(--transition)
+    }
+
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.3);
+      border-radius: 2px
+    }
+
+    /* Layout */
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      position: relative
+    }
+
+    #sim-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden
+    }
+
+    #earth-canvas {
+      width: 100%;
+      height: 100%
+    }
+
+    /* HUD overlay */
+    #hud-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      background: linear-gradient(180deg, var(--bg), transparent);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 14px;
+      pointer-events: none;
+      z-index: 10;
+      transition: background var(--transition)
+    }
+
+    .hud-logo {
+      font-family: var(--hud);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      pointer-events: auto
+    }
+
+    .hud-stat {
+      font-family: var(--body);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      display: flex;
+      gap: 4px;
+      align-items: center
+    }
+
+    .hud-stat span {
+      color: var(--cyan)
+    }
+
+    #hud-time {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      pointer-events: auto
+    }
+
+    .hud-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      animation: blink 1.8s ease-in-out infinite
+    }
+
+    .hud-dot.g {
+      background: var(--green);
+      box-shadow: 0 0 5px var(--green)
+    }
+
+    .hud-dot.r {
+      background: var(--red);
+      box-shadow: 0 0 5px var(--red)
+    }
+
+    .hud-dot.a {
+      background: var(--amber);
+      box-shadow: 0 0 5px var(--amber)
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: .4
+      }
+
+      50% {
+        opacity: 1
+      }
+    }
+
+    /* Sidebar */
+    #sidebar {
+      width: 320px;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      transition: background var(--transition), border-color var(--transition)
+    }
+
+    #sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0
+    }
+
+    .stab {
+      flex: 1;
+      padding: 12px 4px;
+      text-align: center;
+      font-family: var(--hud);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--muted);
+      border-bottom: 2px solid transparent
+    }
+
+    .stab.active {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0, 212, 255, 0.05)
+    }
+
+    .stab:hover:not(.active) {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03)
+    }
+
+    #sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+      transition: background var(--transition), border-color var(--transition)
+    }
+
+    .card-title {
+      font-family: var(--hud);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 10px
+    }
+
+    /* Form */
+    .fgroup {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 9px
+    }
+
+    .fgroup label {
+      font-size: 10px;
+      font-family: var(--hud);
+      letter-spacing: 1px;
+      color: var(--muted)
+    }
+
+    .fgroup input,
+    .fgroup select {
+      background: rgba(0, 30, 60, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 7px 9px;
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      transition: .2s
+    }
+
+    .fgroup input:focus,
+    .fgroup select:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1)
+    }
+
+    .fgroup select option {
+      background: #030f22
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid;
+      font-family: var(--hud);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center
+    }
+
+    .btn-cyan {
+      background: rgba(0, 212, 255, 0.12);
+      color: var(--cyan);
+      border-color: rgba(0, 212, 255, 0.4)
+    }
+
+    .btn-cyan:hover {
+      background: rgba(0, 212, 255, 0.22);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.2)
+    }
+
+    .btn-red {
+      background: rgba(255, 68, 85, 0.1);
+      color: var(--red);
+      border-color: rgba(255, 68, 85, 0.3)
+    }
+
+    .btn-red:hover {
+      background: rgba(255, 68, 85, 0.2)
+    }
+
+    .btn-green {
+      background: rgba(0, 255, 157, 0.1);
+      color: var(--green);
+      border-color: rgba(0, 255, 157, 0.3)
+    }
+
+    .btn-green:hover {
+      background: rgba(0, 255, 157, 0.2)
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 9px;
+      width: auto
+    }
+
+    /* Sat list items */
+    .sat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 255, 0.08);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: .2s;
+      background: rgba(0, 15, 35, 0.5)
+    }
+
+    .sat-item:hover {
+      border-color: rgba(0, 212, 255, 0.25);
+      background: rgba(0, 212, 255, 0.05)
+    }
+
+    .sat-item.selected {
+      border-color: var(--cyan);
+      background: rgba(0, 212, 255, 0.08)
+    }
+
+    .sat-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    .sat-name {
+      font-size: 12px;
+      font-weight: 600;
+      flex: 1
+    }
+
+    .sat-meta {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono)
+    }
+
+    .sat-badge {
+      font-size: 9px;
+      font-family: var(--mono);
+      padding: 2px 6px;
+      border-radius: 2px
+    }
+
+    .b-leo {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 212, 255, 0.25)
+    }
+
+    .b-meo {
+      background: rgba(176, 96, 255, 0.15);
+      color: var(--purple);
+      border: 1px solid rgba(176, 96, 255, 0.25)
+    }
+
+    .b-geo {
+      background: rgba(255, 179, 0, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(255, 179, 0, 0.25)
+    }
+
+    .b-sso {
+      background: rgba(0, 255, 157, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(0, 255, 157, 0.25)
+    }
+
+    .b-heo {
+      background: rgba(255, 68, 85, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(255, 68, 85, 0.25)
+    }
+
+    /* Alerts */
+    .alert-item {
+      padding: 8px 10px;
+      border-radius: 3px;
+      border-left: 3px solid;
+      margin-bottom: 7px;
+      background: rgba(0, 10, 25, 0.5);
+      font-size: 12px
+    }
+
+    .alert-item.H {
+      border-color: var(--red)
+    }
+
+    .alert-item.M {
+      border-color: var(--amber)
+    }
+
+    .alert-item.L {
+      border-color: var(--green)
+    }
+
+    .alert-sev {
+      font-family: var(--mono);
+      font-size: 9px;
+      margin-bottom: 3px
+    }
+
+    .alert-item.H .alert-sev {
+      color: var(--red)
+    }
+
+    .alert-item.M .alert-sev {
+      color: var(--amber)
+    }
+
+    .alert-item.L .alert-sev {
+      color: var(--green)
+    }
+
+    /* Toast */
+    #toast-area {
+      position: fixed;
+      top: 60px;
+      right: 316px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none
+    }
+
+    .toast {
+      padding: 10px 14px;
+      border-radius: 3px;
+      border-left: 3px solid;
+      background: rgba(4, 12, 30, 0.97);
+      font-size: 12px;
+      animation: tin .3s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      min-width: 220px
+    }
+
+    .toast.s {
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    .toast.e {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .toast.i {
+      border-color: var(--cyan);
+      color: var(--cyan)
+    }
+
+    .toast.w {
+      border-color: var(--amber);
+      color: var(--amber)
+    }
+
+    .toast span {
+      color: var(--text);
+      font-size: 12px;
+      margin-left: 6px
+    }
+
+    @keyframes tin {
+      from {
+        transform: translateX(12px);
+        opacity: 0
+      }
+
+      to {
+        transform: none;
+        opacity: 1
+      }
+    }
+
+    /* Tooltip on canvas */
+    #sat-tooltip {
+      position: absolute;
+      background: rgba(4, 12, 30, 0.95);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 30;
+      min-width: 160px
+    }
+
+    #sat-tooltip .tt-name {
+      font-family: var(--hud);
+      font-size: 11px;
+      color: var(--cyan);
+      margin-bottom: 6px
+    }
+
+    #sat-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 11px;
+      margin-bottom: 2px
+    }
+
+    #sat-tooltip .tt-row span:first-child {
+      color: var(--muted)
+    }
+
+    #sat-tooltip .tt-row span:last-child {
+      font-family: var(--mono);
+      color: var(--text)
+    }
+
+    /* DB status bar */
+    #db-bar {
+      height: 28px;
+      background: rgba(2, 6, 16, 0.9);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      font-size: 10px;
+      font-family: var(--mono);
+      flex-shrink: 0
+    }
+
+    .db-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    #db-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--amber)
+    }
+
+    #db-status-text {
+      color: var(--muted)
+    }
+
+    /* Inline stat row */
+    .istat {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+      font-size: 12px
+    }
+
+    .istat:last-child {
+      border: none
+    }
+
+    .istat .k {
+      color: var(--muted)
+    }
+
+    .istat .v {
+      font-family: var(--mono);
+      color: var(--text)
+    }
+
+    .istat .v.c {
+      color: var(--cyan)
+    }
+
+    .istat .v.g {
+      color: var(--green)
+    }
+
+    .istat .v.r {
+      color: var(--red)
+    }
+
+    .istat .v.a {
+      color: var(--amber)
+    }
+
+    /* Probability bar */
+    .prob-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 4px 0
+    }
+
+    .prob-bar {
+      flex: 1;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .prob-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .5s
+    }
+
+    .prob-val {
+      font-family: var(--mono);
+      font-size: 11px;
+      min-width: 36px;
+      text-align: right
+    }
+
+    .section-head {
+      font-family: var(--hud);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      padding: 6px 0 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px
+    }
+
+    .empty {
+      text-align: center;
+      padding: 24px 0;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    /* Control row */
+    .ctrl-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px
+    }
+
+    .ctrl-row input {
+      flex: 1
+    }
+
+    /* Sim speed */
+    #speed-display {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--amber);
+      min-width: 30px;
+      text-align: center
+    }
+
+    /* Debris risk */
+    .risk-H {
+      color: var(--red)
+    }
+
+    .risk-M {
+      color: var(--amber)
+    }
+
+    .risk-L {
+      color: var(--green)
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 9px
+    }
+
+    /* ── LOGIN OVERLAY ── */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #020610;
+      overflow: hidden;
+    }
+
+    #login-bg-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #login-panel {
+      position: relative;
+      z-index: 2;
+      width: 380px;
+      background: rgba(4, 12, 30, 0.88);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(0, 212, 255, 0.08), 0 0 0 1px rgba(0, 212, 255, 0.08);
+      padding: 40px 36px 32px;
+      backdrop-filter: blur(16px);
+      animation: fadeUp .6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    #login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    #login-logo .symbol {
+      font-size: 36px;
+      filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.7));
+      animation: pulse-logo 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-logo {
+
+      0%,
+      100% {
+        filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.5))
+      }
+
+      50% {
+        filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.9))
+      }
+    }
+
+    #login-logo h1 {
+      font-family: var(--hud);
+      font-size: 18px;
+      letter-spacing: 5px;
+      color: var(--cyan);
+      margin: 10px 0 4px;
+    }
+
+    #login-logo p {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      font-family: var(--mono);
+    }
+
+    .login-field {
+      margin-bottom: 16px;
+    }
+
+    .login-field label {
+      display: block;
+      font-family: var(--hud);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .login-field .input-wrap {
+      position: relative;
+    }
+
+    .login-field input {
+      width: 100%;
+      background: rgba(0, 30, 60, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.18);
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 14px;
+      outline: none;
+      transition: .2s;
+    }
+
+    .login-field input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08);
+    }
+
+    .eye-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      transition: .2s;
+    }
+
+    .eye-toggle:hover {
+      color: var(--cyan);
+    }
+
+    #login-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 100, 200, 0.1));
+      color: var(--cyan);
+      font-family: var(--hud);
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: .25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #login-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.28), rgba(0, 100, 200, 0.2));
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+    }
+
+    #login-btn:active {
+      transform: scale(0.98);
+    }
+
+    #login-error {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 3px;
+      background: rgba(255, 68, 85, 0.08);
+      border: 1px solid rgba(255, 68, 85, 0.25);
+      color: var(--red);
+      font-size: 11px;
+      font-family: var(--mono);
+      text-align: center;
+      display: none;
+    }
+
+    .login-hint {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      line-height: 1.7;
+    }
+
+    .login-hint span {
+      color: rgba(0, 212, 255, 0.5);
+    }
+
+    .login-scan {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+      animation: scan 2.5s linear infinite;
+    }
+
+    @keyframes scan {
+      0% {
+        top: -2px
+      }
+
+      100% {
+        top: 100%
+      }
+    }
+
+    .login-corner {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: rgba(0, 212, 255, 0.4);
+      border-style: solid;
+    }
+
+    .lc-tl {
+      top: 8px;
+      left: 8px;
+      border-width: 1px 0 0 1px
+    }
+
+    .lc-tr {
+      top: 8px;
+      right: 8px;
+      border-width: 1px 1px 0 0
+    }
+
+    .lc-bl {
+      bottom: 8px;
+      left: 8px;
+      border-width: 0 0 1px 1px
+    }
+
+    .lc-br {
+      bottom: 8px;
+      right: 8px;
+      border-width: 0 1px 1px 0
+    }
+
+    /* ── INVISIBLE MODE ── */
+    #invisible-btn {
+      position: fixed;
+      bottom: 38px;
+      left: 14px;
+      z-index: 500;
+      background: rgba(0, 30, 60, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 3px;
+      padding: 5px 10px;
+      font-family: var(--hud);
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    #invisible-btn:hover {
+      color: var(--cyan);
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    body.invisible-mode #app {
+      opacity: 0 !important;
+      pointer-events: none;
+    }
+
+    body.invisible-mode #invisible-exit {
+      display: flex !important;
+    }
+
+    #invisible-exit {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 8000;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #invisible-exit-hint {
+      font-family: var(--hud);
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(0, 212, 255, 0.08);
+      user-select: none;
+      transition: .3s;
+    }
+
+    #invisible-exit:hover #invisible-exit-hint {
+      color: rgba(0, 212, 255, 0.35);
+    }
+
+    /* ── USER BADGE ── */
+    #user-badge {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      margin-left: auto;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    #user-badge .u-name {
+      font-family: var(--body);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cyan);
+    }
+
+    #user-badge .u-role {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--body);
+      font-weight: 500;
+    }
+
+    #user-badge .u-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(59, 158, 255, 0.12);
+      border: 1px solid rgba(59, 158, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cyan);
+    }
+
+    #logout-btn {
+      font-family: var(--hud);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 10px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.05);
+      transition: var(--transition);
+    }
+
+    #logout-btn:hover {
+      color: var(--red);
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* ── THEME TOGGLE ── */
+    #theme-toggle {
+      pointer-events: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      transition: var(--transition);
+      color: var(--text);
+    }
+
+    #theme-toggle:hover {
+      border-color: var(--cyan);
+      background: var(--cyan2);
+    }
+
+    /* ── LOGIN/REGISTER TOGGLE ── */
+    .auth-toggle {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .auth-toggle a {
+      color: var(--cyan);
+      cursor: pointer;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+      transition: .2s;
+      padding-bottom: 1px;
+    }
+
+    .auth-toggle a:hover {
+      color: #fff;
+      border-color: var(--cyan);
+    }
+
+    #register-fields {
+      display: none;
+    }
+
+    #login-fields {
+      display: block;
+    }
+
+    .login-subtitle {
+      font-family: var(--hud);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 18px;
+      text-transform: uppercase;
+    }
+
+    #register-success {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 3px;
+      background: rgba(0, 255, 157, 0.08);
+      border: 1px solid rgba(0, 255, 157, 0.25);
+      color: var(--green);
+      font-size: 11px;
+      font-family: var(--mono);
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── LOGIN OVERLAY ── -->
+  <div id="login-overlay">
+    <canvas id="login-bg-canvas"></canvas>
+    <div id="login-panel">
+      <div class="login-scan"></div>
+      <div class="login-corner lc-tl"></div>
+      <div class="login-corner lc-tr"></div>
+      <div class="login-corner lc-bl"></div>
+      <div class="login-corner lc-br"></div>
+      <div id="login-logo">
+        <div class="symbol">⬡</div>
+        <h1>ORBITAL GUARDIAN</h1>
+        <p>SPACE SITUATIONAL AWARENESS SYSTEM</p>
+      </div>
+      <div class="login-subtitle" id="auth-mode-title">AUTHENTICATE</div>
+
+      <!-- LOGIN FORM -->
+      <div id="login-fields">
+        <div class="login-field">
+          <label>Username</label>
+          <div class="input-wrap">
+            <input type="text" id="login-username" placeholder="Enter username" autocomplete="username" value="">
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password">
+            <button class="eye-toggle" onclick="togglePw()" id="eye-btn">👁</button>
+          </div>
+        </div>
+        <button id="login-btn" onclick="attemptLogin()">⊳ AUTHENTICATE</button>
+        <div id="login-error">⚠ Invalid credentials — access denied</div>
+        <div class="login-hint">
+          Demo credentials: <span>admin / admin123</span><br>
+          or <span>analyst / analyst456</span>
+        </div>
+        <div class="auth-toggle">
+          No account? <a onclick="showRegister()">Create one</a>
+        </div>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div id="register-fields">
+        <div class="login-field">
+          <label>Username</label>
+          <div class="input-wrap">
+            <input type="text" id="reg-username" placeholder="Choose a username" autocomplete="off">
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Email</label>
+          <div class="input-wrap">
+            <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="off">
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <input type="password" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Confirm Password</label>
+          <div class="input-wrap">
+            <input type="password" id="reg-confirm" placeholder="Re-enter password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Role</label>
+          <div class="input-wrap">
+            <select id="reg-role"
+              style="width:100%;background:rgba(0,30,60,0.7);border:1px solid rgba(0,212,255,0.18);border-radius:4px;padding:10px 14px;color:var(--text);font-family:var(--body);font-size:14px;outline:none;">
+              <option value="analyst" style="background:#030f22">Analyst</option>
+              <option value="admin" style="background:#030f22">Admin</option>
+            </select>
+          </div>
+        </div>
+        <button id="register-btn" onclick="attemptRegister()"
+          style="width:100%;padding:12px;margin-top:8px;border-radius:4px;border:1px solid rgba(0,255,157,0.4);background:linear-gradient(135deg,rgba(0,255,157,0.15),rgba(0,150,80,0.1));color:var(--green);font-family:var(--hud);font-size:11px;letter-spacing:2px;cursor:pointer;transition:.25s;">⊕
+          CREATE ACCOUNT</button>
+        <div id="login-error-reg"
+          style="margin-top:12px;padding:8px 12px;border-radius:3px;background:rgba(255,68,85,0.08);border:1px solid rgba(255,68,85,0.25);color:var(--red);font-size:11px;font-family:var(--mono);text-align:center;display:none;">
+        </div>
+        <div id="register-success">✓ Account created — you can now log in</div>
+        <div class="auth-toggle">
+          Already have an account? <a onclick="showLogin()">Sign in</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVISIBLE MODE EXIT ── -->
+  <div id="invisible-exit" onclick="exitInvisible()">
+    <div id="invisible-exit-hint">CLICK ANYWHERE TO RESTORE</div>
+  </div>
+
+
+  <div id="app">
+    <!-- Main simulation area -->
+    <div id="sim-area">
+      <canvas id="earth-canvas"></canvas>
+      <div id="hud-top">
+        <div class="hud-logo">🛰️ Orbital Guardian</div>
+        <div class="hud-dot g" id="track-dot"></div>
+        <div class="hud-stat">Satellites <span id="hs-sats">0</span></div>
+        <div class="hud-stat">Debris <span id="hs-debris">0</span></div>
+        <div class="hud-stat">Alerts <span id="hs-alerts" style="color:var(--red)">0</span></div>
+        <div class="hud-stat">Predictions <span id="hs-pred">0</span></div>
+        <div id="hud-time">--:--:-- UTC</div>
+        <button id="theme-toggle" onclick="toggleTheme()" title="Switch theme">🌙</button>
+        <div id="user-badge">
+          <div>
+            <div class="u-name" id="u-name-display">—</div>
+            <div class="u-role" id="u-role-display">—</div>
+          </div>
+          <div class="u-avatar" id="u-avatar">?</div>
+          <button id="logout-btn" onclick="doLogout()">Logout</button>
+        </div>
+      </div>
+      <div id="sat-tooltip">
+        <div class="tt-name" id="tt-name"></div>
+        <div class="tt-row"><span>Orbit</span><span id="tt-orbit"></span></div>
+        <div class="tt-row"><span>Altitude</span><span id="tt-alt"></span></div>
+        <div class="tt-row"><span>Speed</span><span id="tt-speed" style="color:var(--cyan)"></span></div>
+        <div class="tt-row"><span>Status</span><span id="tt-status"></span></div>
+        <div class="tt-row"><span>Org</span><span id="tt-org"></span></div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div id="sidebar-tabs">
+        <div class="stab active" onclick="switchTab('sim')">SIM</div>
+        <div class="stab" onclick="switchTab('sats')">SATS</div>
+        <div class="stab" onclick="switchTab('debris')">DEBRIS</div>
+        <div class="stab" onclick="switchTab('pred')">PREDICT</div>
+        <div class="stab" onclick="switchTab('alerts')">ALERTS</div>
+        <div class="stab" onclick="switchTab('more')">MORE</div>
+        <div class="stab" onclick="switchTab('db')">DB</div>
+      </div>
+      <div id="sidebar-content">
+        <!-- dynamically rendered -->
+      </div>
+      <div id="db-bar">
+        <div class="db-indicator">
+            <div id="db-status-dot"></div>
+            <span id="db-status-text">Firestore: Connecting...</span>
+          </div>
+          <span style="margin-left:auto;color:var(--muted)">cloud Firestore · orbital-guardian</span>
+      </div>
+    </div>
+  </div>
+  </div>
+  <button id="invisible-btn" onclick="enterInvisible()" title="Stealth Mode">👁 INVISIBLE</button>
+  <div id="toast-area"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════
+    // LOGIN GLOBE BACKGROUND
+    // ═══════════════════════════════════════════════════════════
+    let loginAnimId;
+    let loginGlobeRunning = true;
+    function restartLoginGlobe() {
+      loginGlobeRunning = true;
+      drawLoginGlobeLoop();
+    }
+    function drawLoginGlobeLoop() {
+      // This is called by restartLoginGlobe to kick-start the animation again
+    }
+    (function () {
+      const lc = document.getElementById('login-bg-canvas');
+      const lx = lc.getContext('2d');
+      let lW, lH, lRot = 0;
+
+      function lResize() {
+        lW = lc.width = window.innerWidth;
+        lH = lc.height = window.innerHeight;
+      }
+      lResize();
+      window.addEventListener('resize', lResize);
+
+      function drawLoginGlobe() {
+        lx.clearRect(0, 0, lW, lH);
+        const cx = lW / 2, cy = lH / 2;
+        const R = Math.min(lW, lH) * 0.34;
+
+        // Deep space glow
+        const bg = lx.createRadialGradient(cx, cy, R * 0.5, cx, cy, R * 2.8);
+        bg.addColorStop(0, 'rgba(0,40,100,0.18)');
+        bg.addColorStop(1, 'transparent');
+        lx.fillStyle = bg;
+        lx.beginPath(); lx.arc(cx, cy, R * 3, 0, Math.PI * 2); lx.fill();
+
+        // Stars
+        lx.save();
+        const starSeed = 42;
+        for (let i = 0; i < 220; i++) {
+          const sx = ((Math.sin(i * 127.1 + starSeed) * 0.5 + 0.5)) * lW;
+          const sy = ((Math.sin(i * 311.7 + starSeed) * 0.5 + 0.5)) * lH;
+          const sr = (Math.sin(i * 91.3) * 0.5 + 0.5) * 1.3;
+          const alpha = (Math.sin(i * 67.1 + Date.now() * 0.0005) * 0.3 + 0.7) * 0.6;
+          lx.fillStyle = `rgba(180,220,255,${alpha})`;
+          lx.beginPath(); lx.arc(sx, sy, sr, 0, Math.PI * 2); lx.fill();
+        }
+        lx.restore();
+
+        // Atmosphere
+        const atm = lx.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 1.22);
+        atm.addColorStop(0, 'rgba(30,120,255,0.22)');
+        atm.addColorStop(0.5, 'rgba(10,60,180,0.10)');
+        atm.addColorStop(1, 'transparent');
+        lx.fillStyle = atm;
+        lx.beginPath(); lx.arc(cx, cy, R * 1.22, 0, Math.PI * 2); lx.fill();
+
+        // Earth base — rich blue ocean
+        const earth = lx.createRadialGradient(cx - R * 0.28, cy - R * 0.22, 0, cx, cy, R);
+        earth.addColorStop(0, '#1e6fa0');
+        earth.addColorStop(0.35, '#0d4575');
+        earth.addColorStop(0.75, '#071e42');
+        earth.addColorStop(1, '#020a1a');
+        lx.fillStyle = earth;
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.fill();
+
+        // Clip for land / grid
+        lx.save();
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.clip();
+
+        // Grid
+        lx.strokeStyle = 'rgba(0,120,255,0.07)'; lx.lineWidth = 0.5;
+        for (let lat = -60; lat <= 60; lat += 30) {
+          const r2 = R * Math.cos(lat * Math.PI / 180);
+          const yy = cy - R * Math.sin(lat * Math.PI / 180);
+          lx.beginPath(); lx.ellipse(cx, yy, r2, r2 * 0.14, 0, 0, Math.PI * 2); lx.stroke();
+        }
+        for (let lon = 0; lon < 360; lon += 30) {
+          const a = (lon * Math.PI / 180) + lRot;
+          lx.beginPath(); lx.ellipse(cx, cy, R * Math.abs(Math.cos(a)), R, 0, 0, Math.PI * 2); lx.stroke();
+        }
+
+        // Land masses — vivid greens
+        const lands = [
+          [-1.05, 0.72, 0.23, 0.30, 'rgba(40,110,55,0.65)'],   // N America
+          [-0.88, 0.28, 0.14, 0.17, 'rgba(150,120,55,0.55)'],  // Mexico/Central
+          [-0.82, -0.35, 0.13, 0.24, 'rgba(40,100,50,0.62)'],  // S America
+          [0.16, 0.50, 0.11, 0.14, 'rgba(40,110,55,0.65)'],    // W Europe
+          [0.22, 0.05, 0.14, 0.26, 'rgba(160,130,50,0.55)'],   // Africa
+          [0.50, 0.38, 0.32, 0.24, 'rgba(38,105,52,0.60)'],    // Asia
+          [0.78, -0.30, 0.11, 0.11, 'rgba(155,125,55,0.52)'],  // Australia
+          [0.02, 0.92, 0.18, 0.07, 'rgba(200,230,255,0.70)'],  // Arctic
+          [-0.05, -0.92, 0.20, 0.08, 'rgba(200,230,255,0.70)'], // Antarctica
+        ];
+        lands.forEach(([lonF, latF, wF, hF, color]) => {
+          const lon = lonF * Math.PI + lRot;
+          const depth = Math.cos(lon);
+          if (depth < -0.15) return;
+          const alpha = Math.min(1, (depth + 0.15) / 0.7);
+          const lx2 = cx + Math.cos(lon) * R * (1 - Math.abs(latF) * 0.28) * 0.97;
+          const ly2 = cy - latF * R * 0.97;
+          lx.globalAlpha = alpha * 0.92;
+          lx.fillStyle = color;
+          lx.beginPath();
+          lx.ellipse(lx2, ly2, R * wF * Math.abs(depth + 0.25), R * hF, lon * 0.08, 0, Math.PI * 2);
+          lx.fill();
+        });
+        lx.globalAlpha = 1;
+
+        // Clouds
+        lx.fillStyle = 'rgba(220,235,255,1)';
+        const clouds = [
+          [0.3, 0.58, 0.19, 0.04], [-0.5, 0.22, 0.15, 0.035],
+          [0.8, -0.08, 0.13, 0.032], [-0.9, 0.52, 0.17, 0.042],
+          [0.0, -0.42, 0.21, 0.05], [1.5, 0.28, 0.14, 0.032],
+        ];
+        clouds.forEach(([lon, lat, w, h]) => {
+          const clon = lon + lRot * 1.08;
+          const d = Math.cos(clon);
+          if (d < 0) return;
+          lx.globalAlpha = d * 0.22;
+          const clx = cx + Math.cos(clon) * R * 0.99 * Math.cos(lat);
+          const cly = cy - lat * R * 0.98;
+          lx.beginPath(); lx.ellipse(clx, cly, R * w * d, R * h, 0, 0, Math.PI * 2); lx.fill();
+        });
+        lx.globalAlpha = 1;
+        lx.restore();
+
+        // City lights on night side
+        lx.save();
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.clip();
+        const nightMask = lx.createRadialGradient(cx + R * 0.45, cy, 0, cx + R * 0.45, cy, R * 1.5);
+        nightMask.addColorStop(0, 'rgba(0,0,0,0)');
+        nightMask.addColorStop(0.42, 'rgba(0,0,0,0.55)');
+        nightMask.addColorStop(1, 'rgba(0,0,0,0)');
+        lx.fillStyle = nightMask; lx.fillRect(0, 0, lW, lH);
+        const cityLights = [
+          [0.16, 0.50], [0.22, 0.45], [0.30, 0.42], [0.50, 0.42], [0.55, 0.35], [0.62, 0.32],
+          [-1.05, 0.72], [-0.90, 0.40], [0.78, -0.30],
+        ];
+        cityLights.forEach(([lonF, latF]) => {
+          const lon = lonF * Math.PI + lRot + Math.PI;
+          const depth = Math.cos(lon);
+          if (depth > 0.1) return;
+          const alpha = Math.min(1, (-depth) * 1.5) * 0.6;
+          const clx = cx + Math.cos(lon) * R * 0.97;
+          const cly = cy - latF * R * 0.97;
+          lx.globalAlpha = alpha;
+          const grd = lx.createRadialGradient(clx, cly, 0, clx, cly, R * 0.04);
+          grd.addColorStop(0, 'rgba(255,220,100,0.9)');
+          grd.addColorStop(1, 'transparent');
+          lx.fillStyle = grd;
+          lx.beginPath(); lx.arc(clx, cly, R * 0.04, 0, Math.PI * 2); lx.fill();
+        });
+        lx.globalAlpha = 1;
+        lx.restore();
+
+        // Specular shine
+        const spec = lx.createRadialGradient(cx - R * 0.32, cy - R * 0.38, 0, cx - R * 0.1, cy - R * 0.1, R * 0.75);
+        spec.addColorStop(0, 'rgba(255,255,255,0.09)');
+        spec.addColorStop(0.5, 'rgba(255,255,255,0.025)');
+        spec.addColorStop(1, 'transparent');
+        lx.fillStyle = spec;
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.fill();
+
+        // Night shadow
+        const shadow = lx.createRadialGradient(cx + R * 0.52, cy, 0, cx + R * 0.52, cy, R * 1.45);
+        shadow.addColorStop(0, 'rgba(0,0,0,0)');
+        shadow.addColorStop(0.48, 'rgba(0,0,0,0.48)');
+        shadow.addColorStop(1, 'rgba(0,0,0,0)');
+        lx.fillStyle = shadow;
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.fill();
+
+        // Globe border
+        lx.strokeStyle = 'rgba(30,110,220,0.28)'; lx.lineWidth = 1.2;
+        lx.beginPath(); lx.arc(cx, cy, R, 0, Math.PI * 2); lx.stroke();
+
+        // Orbiting rings (decorative)
+        lx.save();
+        lx.strokeStyle = 'rgba(0,212,255,0.08)'; lx.lineWidth = 0.8;
+        for (let ri = 0; ri < 3; ri++) {
+          const rr = R * (1.25 + ri * 0.18);
+          lx.beginPath(); lx.arc(cx, cy, rr, 0, Math.PI * 2); lx.stroke();
+        }
+        // Tiny orbital dot
+        const dotR = R * 1.28;
+        const dotAngle = lRot * 2;
+        lx.fillStyle = 'rgba(0,212,255,0.7)';
+        lx.beginPath(); lx.arc(cx + dotR * Math.cos(dotAngle), cy - dotR * Math.sin(dotAngle), 3, 0, Math.PI * 2); lx.fill();
+        lx.restore();
+
+        lRot += 0.0008;
+        loginAnimId = requestAnimationFrame(drawLoginGlobe);
+      }
+      drawLoginGlobe();
+      // Expose restart capability
+      drawLoginGlobeLoop = function () {
+        if (loginAnimId) cancelAnimationFrame(loginAnimId);
+        drawLoginGlobe();
+      };
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // LOGIN LOGIC
+    // ═══════════════════════════════════════════════════════════
+    // Persist registered accounts across sessions via localStorage
+    const USERS = {
+      'admin': { password: 'admin123', role: 'admin', display: 'Admin' },
+      'analyst': { password: 'analyst456', role: 'analyst', display: 'Analyst' },
+    };
+    // Merge any previously registered accounts back in
+    try {
+      const saved = JSON.parse(localStorage.getItem('og_users') || '{}');
+      Object.assign(USERS, saved);
+    } catch (e) { }
+    let currentUser = null;
+
+    function togglePw() {
+      const inp = document.getElementById('login-password');
+      const btn = document.getElementById('eye-btn');
+      if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+      else { inp.type = 'password'; btn.textContent = '👁'; }
+    }
+
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') attemptLogin();
+    });
+    document.getElementById('login-username').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('login-password').focus();
+    });
+
+    async function attemptLogin() {
+      const u = document.getElementById('login-username').value.trim().toLowerCase();
+      const p = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+
+      if (!u || !p) {
+        errEl.textContent = '⚠ Please enter username and password';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.textContent = '⏳ Authenticating...';
+      btn.disabled = true;
+      errEl.style.display = 'none';
+
+      // 1. Try backend API authentication first (Firestore-backed)
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            // Store the token globally so all API calls use THIS user's token
+            window._authToken = data.token;
+            localStorage.setItem('og_token', data.token);
+            USERS[u] = { password: p, role: data.user?.role || 'analyst', display: data.user?.username || u };
+            loginSuccess({
+              username: u,
+              role: data.user?.role || 'analyst',
+              display: data.user?.username || u
+            });
+            btn.disabled = false;
+            return;
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          // Wrong password from backend — show error immediately
+          if (res.status === 401) {
+            btn.disabled = false;
+            btn.textContent = '⊳ AUTHENTICATE';
+            errEl.textContent = '⚠ ' + (errData.error || 'Invalid credentials');
+            errEl.style.display = 'block';
+            document.getElementById('login-panel').style.borderColor = 'rgba(239,68,68,0.4)';
+            setTimeout(() => { document.getElementById('login-panel').style.borderColor = ''; }, 800);
+            return;
+          }
+        }
+      } catch (_) {
+        // Backend unavailable — fall through to local check
+      }
+
+      // 2. Fallback: check local hardcoded users (offline / demo mode)
+      const userDef = USERS[u];
+      if (userDef && userDef.password === p) {
+        window._authToken = localStorage.getItem('og_token') || '';
+        loginSuccess({ username: u, role: userDef.role, display: userDef.display });
+        btn.disabled = false;
+        return;
+      }
+
+      // 3. Login failed
+      btn.disabled = false;
+      btn.textContent = '⊳ AUTHENTICATE';
+      errEl.textContent = '⚠ Invalid credentials — check username & password';
+      errEl.style.display = 'block';
+      document.getElementById('login-panel').style.borderColor = 'rgba(239,68,68,0.4)';
+      document.getElementById('login-panel').style.boxShadow = '0 0 30px rgba(239,68,68,0.1)';
+      setTimeout(() => {
+        document.getElementById('login-panel').style.borderColor = '';
+        document.getElementById('login-panel').style.boxShadow = '';
+      }, 800);
+    }
+
+    // Shared login success handler
+    function loginSuccess(user) {
+      const errEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+      errEl.style.display = 'none';
+      btn.textContent = '✓ Welcome back!';
+      btn.style.background = 'linear-gradient(135deg,rgba(34,197,94,0.2),rgba(22,163,74,0.15))';
+      btn.style.borderColor = 'rgba(34,197,94,0.4)';
+      btn.style.color = 'var(--green)';
+      currentUser = user;
+      setTimeout(() => {
+        const ov = document.getElementById('login-overlay');
+        ov.style.transition = 'opacity 0.6s ease';
+        ov.style.opacity = '0';
+        setTimeout(() => {
+          ov.style.display = 'none';
+          if (loginAnimId) cancelAnimationFrame(loginAnimId);
+          document.getElementById('user-badge').style.display = 'flex';
+          document.getElementById('u-name-display').textContent = currentUser.display;
+          document.getElementById('u-role-display').textContent = currentUser.role.toUpperCase();
+          document.getElementById('u-avatar').textContent = currentUser.display[0].toUpperCase();
+          document.getElementById('invisible-btn').style.display = 'block';
+          toast(`Welcome, ${currentUser.display}! You're signed in as ${currentUser.role}.`, 's');
+        }, 620);
+      }, 500);
+    }
+
+    function doLogout() {
+      currentUser = null;
+      // Safely reset token — 'token' lives in the second script block
+      try { token = ''; } catch (e) { }
+      try { if (state) state.dbConnected = false; } catch (e) { }
+      localStorage.removeItem('og_token');
+
+      // Reset form fields
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').style.display = 'none';
+
+      // Reset button cleanly
+      const loginBtn = document.getElementById('login-btn');
+      loginBtn.textContent = '⊳ AUTHENTICATE';
+      loginBtn.style.background = '';
+      loginBtn.style.borderColor = '';
+      loginBtn.style.color = '';
+      loginBtn.disabled = false;
+
+      // Hide user badge and invisible button
+      document.getElementById('user-badge').style.display = 'none';
+      document.getElementById('invisible-btn').style.display = 'none';
+
+      // Show login form (not register)
+      showLogin();
+
+      // Reveal overlay with fade-in
+      const ov = document.getElementById('login-overlay');
+      ov.style.transition = 'none';
+      ov.style.opacity = '0';
+      ov.style.display = 'flex';
+      // Restart background globe animation
+      restartLoginGlobe();
+      // Small delay so display:flex is painted before transition starts
+      setTimeout(() => {
+        ov.style.transition = 'opacity 0.4s ease';
+        ov.style.opacity = '1';
+      }, 30);
+
+      toast('Logged out successfully', 'i');
+    }
+
+    // ── LOGIN / REGISTER TOGGLE ──
+    function showRegister() {
+      document.getElementById('login-fields').style.display = 'none';
+      document.getElementById('register-fields').style.display = 'block';
+      document.getElementById('auth-mode-title').textContent = 'CREATE ACCOUNT';
+      document.getElementById('login-error-reg').style.display = 'none';
+      document.getElementById('register-success').style.display = 'none';
+    }
+    function showLogin() {
+      document.getElementById('login-fields').style.display = 'block';
+      document.getElementById('register-fields').style.display = 'none';
+      document.getElementById('auth-mode-title').textContent = 'AUTHENTICATE';
+      document.getElementById('login-error').style.display = 'none';
+    }
+
+    async function attemptRegister() {
+      const u = document.getElementById('reg-username').value.trim().toLowerCase();
+      const email = document.getElementById('reg-email').value.trim();
+      const p = document.getElementById('reg-password').value;
+      const p2 = document.getElementById('reg-confirm').value;
+      const role = document.getElementById('reg-role').value;
+      const errEl = document.getElementById('login-error-reg');
+      const successEl = document.getElementById('register-success');
+      const regBtn = document.getElementById('register-btn');
+      errEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      // Validation
+      if (!u || u.length < 3) { errEl.textContent = '⚠ Username must be at least 3 characters'; errEl.style.display = 'block'; return; }
+      if (!email || !email.includes('@')) { errEl.textContent = '⚠ Enter a valid email address'; errEl.style.display = 'block'; return; }
+      if (!p || p.length < 6) { errEl.textContent = '⚠ Password must be at least 6 characters'; errEl.style.display = 'block'; return; }
+      if (p !== p2) { errEl.textContent = '⚠ Passwords do not match'; errEl.style.display = 'block'; return; }
+      if (USERS[u]) { errEl.textContent = '⚠ Username already exists locally'; errEl.style.display = 'block'; return; }
+
+      regBtn.disabled = true;
+      regBtn.textContent = '⏳ Creating...';
+
+      // 1. Try backend API registration (saves to Firestore)
+      let savedToFirestore = false;
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p, email: email, role: role })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.token) {
+          savedToFirestore = true;
+          // Also cache locally
+          USERS[u] = { password: p, role, display: u.charAt(0).toUpperCase() + u.slice(1), email };
+          try {
+            const saved = JSON.parse(localStorage.getItem('og_users') || '{}');
+            saved[u] = USERS[u];
+            localStorage.setItem('og_users', JSON.stringify(saved));
+          } catch (_) {}
+          successEl.textContent = '✓ Account created & saved to Firestore — you can now log in';
+        } else if (res.status === 400 && data.error) {
+          regBtn.disabled = false;
+          regBtn.textContent = '⊕ CREATE ACCOUNT';
+          errEl.textContent = '⚠ ' + data.error;
+          errEl.style.display = 'block';
+          return;
+        } else {
+          throw new Error('non-ok');
+        }
+      } catch (_) {
+        if (!savedToFirestore) {
+          // 2. Backend offline — save locally only
+          USERS[u] = { password: p, role, display: u.charAt(0).toUpperCase() + u.slice(1), email };
+          try {
+            const saved = JSON.parse(localStorage.getItem('og_users') || '{}');
+            saved[u] = USERS[u];
+            localStorage.setItem('og_users', JSON.stringify(saved));
+          } catch (_2) {}
+          successEl.textContent = '✓ Account created (offline) — you can now log in';
+        }
+      }
+
+      regBtn.disabled = false;
+      regBtn.textContent = '⊕ CREATE ACCOUNT';
+      successEl.style.display = 'block';
+
+      // Clear form
+      document.getElementById('reg-username').value = '';
+      document.getElementById('reg-email').value = '';
+      document.getElementById('reg-password').value = '';
+      document.getElementById('reg-confirm').value = '';
+
+      // Auto-switch to login after 2s
+      setTimeout(() => {
+        showLogin();
+        document.getElementById('login-username').value = u;
+        document.getElementById('login-username').focus();
+      }, 2000);
+    }
+
+    // Enter key support for register fields
+    document.getElementById('reg-confirm').addEventListener('keydown', e => {
+      if (e.key === 'Enter') attemptRegister();
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // INVISIBLE MODE
+    // ═══════════════════════════════════════════════════════════
+    function enterInvisible() {
+      document.body.classList.add('invisible-mode');
+      toast('Stealth mode — click screen to restore', 'w');
+    }
+    function exitInvisible() {
+      document.body.classList.remove('invisible-mode');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // THEME TOGGLE (Light / Dark)
+    // ═══════════════════════════════════════════════════════════
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next === 'dark' ? '' : 'light');
+      if (next === 'dark') html.removeAttribute('data-theme');
+      localStorage.setItem('og_theme', next);
+      document.getElementById('theme-toggle').textContent = next === 'light' ? '☀️' : '🌙';
+    }
+    // Restore saved theme
+    (function () {
+      const saved = localStorage.getItem('og_theme');
+      if (saved === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-toggle').textContent = '☀️';
+      }
+    })();
+
+    // Hide invisible button initially until logged in
+    document.getElementById('invisible-btn').style.display = 'none';
+  </script>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════
+    const FIREBASE_CFG = { serviceAccount: '', projectId: '', apiKey: '' };
+    const API = 'http://localhost:5000/api';
+    // Use the token set by the login handler (window._authToken), or a previously stored one
+    let token = window._authToken || localStorage.getItem('og_token') || '';
+
+    let state = {
+      satellites: [],
+      debris: [],
+      predictions: [],
+      alerts: [],
+      stations: [],
+      aiModels: [],
+      simulations: [],
+      missions: [],
+      launchVehicles: [],
+      launchEvents: [],
+      maneuvers: [],
+      dataLogs: [],
+      commLinks: [],
+      maintenance: [],
+      organizations: [],
+      dbConnected: false,
+      selectedSat: null,
+      tab: 'sim',
+      simSpeed: 1,
+      showOrbits: true,
+      showDebris: true,
+      earthRot: 0,
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // DEMO / SEED DATA (used when backend offline)
+    // ═══════════════════════════════════════════════════════════
+    function seedData() {
+      state.satellites = [
+        { id: 1, name: 'ISS', orbit_type: 'LEO', status: 'Active', organization: 'NASA', altitude_km: 408, inclination: 51.6, norad_id: '25544', color: '#00d4ff', angle: 0, orbitTilt: 0.9 },
+        { id: 2, name: 'Hubble', orbit_type: 'LEO', status: 'Active', organization: 'NASA', altitude_km: 547, inclination: 28.5, norad_id: '20580', color: '#00ff9d', angle: 1.8, orbitTilt: 0.5 },
+        { id: 3, name: 'GPS IIF-1', orbit_type: 'MEO', status: 'Active', organization: 'USAF', altitude_km: 20200, inclination: 55, norad_id: '37753', color: '#b060ff', angle: 3.2, orbitTilt: 1.0 },
+        { id: 4, name: 'Starlink-1001', orbit_type: 'LEO', status: 'Active', organization: 'SpaceX', altitude_km: 550, inclination: 53, norad_id: '44713', color: '#ffb300', angle: 0.5, orbitTilt: 0.3 },
+        { id: 5, name: 'Sentinel-2A', orbit_type: 'SSO', status: 'Active', organization: 'ESA', altitude_km: 786, inclination: 98.6, norad_id: '40697', color: '#00ff9d', angle: 2.1, orbitTilt: -1.7 },
+        { id: 6, name: 'GOES-16', orbit_type: 'GEO', status: 'Active', organization: 'NOAA', altitude_km: 35786, inclination: 0, norad_id: '41866', color: '#ffb300', angle: 4.2, orbitTilt: 0.05 },
+        { id: 7, name: 'Iridium-155', orbit_type: 'LEO', status: 'Inactive', organization: 'Iridium', altitude_km: 780, inclination: 86.4, norad_id: '43922', color: '#ff4455', angle: 5.1, orbitTilt: 1.5 },
+        { id: 8, name: 'NOAA-18', orbit_type: 'SSO', status: 'Active', organization: 'NOAA', altitude_km: 854, inclination: 98.7, norad_id: '28654', color: '#00ff9d', angle: 1.1, orbitTilt: -1.72 },
+        { id: 9, name: 'Chandrayaan-3', orbit_type: 'HEO', status: 'Active', organization: 'ISRO', altitude_km: 36000, inclination: 21.2, norad_id: '57320', color: '#ff4455', angle: 2.5, orbitTilt: 0.4 },
+        { id: 10, name: 'Starlink-2044', orbit_type: 'LEO', status: 'Active', organization: 'SpaceX', altitude_km: 550, inclination: 53, norad_id: '53207', color: '#00d4ff', angle: 3.5, orbitTilt: 0.3 },
+        { id: 11, name: 'ALOS-2', orbit_type: 'SSO', status: 'Active', organization: 'JAXA', altitude_km: 628, inclination: 97.9, norad_id: '39766', color: '#00ff9d', angle: 4.1, orbitTilt: -1.6 },
+        { id: 12, name: 'Mir-Debris', orbit_type: 'LEO', status: 'Inactive', organization: 'Roscosmos', altitude_km: 390, inclination: 51.6, norad_id: '16609', color: '#00d4ff', angle: 5.8, orbitTilt: 0.9 },
+        { id: 13, name: 'OneWeb-0012', orbit_type: 'LEO', status: 'Active', organization: 'OneWeb', altitude_km: 1200, inclination: 87.9, norad_id: '44057', color: '#00d4ff', angle: 1.2, orbitTilt: 1.5 },
+        { id: 14, name: 'PlanetScope-85', orbit_type: 'SSO', status: 'Active', organization: 'Planet Labs', altitude_km: 475, inclination: 98, norad_id: '41465', color: '#00ff9d', angle: 2.8, orbitTilt: -1.7 },
+        { id: 15, name: 'Tiangong', orbit_type: 'LEO', status: 'Active', organization: 'CNSA', altitude_km: 389, inclination: 41.5, norad_id: '48274', color: '#00d4ff', angle: 4.5, orbitTilt: 0.7 },
+        { id: 16, name: 'GPS III-SV01', orbit_type: 'MEO', status: 'Active', organization: 'USAF', altitude_km: 20200, inclination: 55, norad_id: '43873', color: '#b060ff', angle: 0.8, orbitTilt: 1.0 },
+        { id: 17, name: 'Galileo FOC-FM22', orbit_type: 'MEO', status: 'Active', organization: 'ESA', altitude_km: 23222, inclination: 56, norad_id: '49810', color: '#b060ff', angle: 5.4, orbitTilt: 1.0 },
+        { id: 18, name: 'Meteosat-11', orbit_type: 'GEO', status: 'Active', organization: 'ESA', altitude_km: 35786, inclination: 0, norad_id: '40732', color: '#ffb300', angle: 1.9, orbitTilt: 0.05 },
+        { id: 19, name: 'TESS', orbit_type: 'HEO', status: 'Active', organization: 'NASA', altitude_km: 108000, inclination: 28.5, norad_id: '43435', color: '#ff4455', angle: 3.9, orbitTilt: 0.5 },
+        { id: 20, name: 'Starlink-3051', orbit_type: 'LEO', status: 'Active', organization: 'SpaceX', altitude_km: 550, inclination: 53, norad_id: '55207', color: '#00d4ff', angle: 2.2, orbitTilt: 0.3 }
+      ];
+      state.debris = [
+        { id: 1, name: 'COSMOS 2251 Frag', size_m: 0.12, risk_level: 'High', altitude_km: 793, velocity_km_s: 7.4 },
+        { id: 2, name: 'Fengyun-1C Frag', size_m: 0.08, risk_level: 'Medium', altitude_km: 851, velocity_km_s: 7.5 },
+        { id: 3, name: 'SL-8 Debris', size_m: 2.1, risk_level: 'High', altitude_km: 980, velocity_km_s: 7.3 },
+        { id: 4, name: 'SL-16 R/B', size_m: 4.5, risk_level: 'Low', altitude_km: 1200, velocity_km_s: 7.1 },
+        { id: 5, name: 'Iridium Frag #77', size_m: 0.05, risk_level: 'Medium', altitude_km: 776, velocity_km_s: 7.4 },
+        { id: 6, name: 'CZ-4C Debris', size_m: 0.35, risk_level: 'High', altitude_km: 820, velocity_km_s: 7.45 },
+        { id: 7, name: 'Ariane 5 Upper Stage', size_m: 3.2, risk_level: 'Medium', altitude_km: 950, velocity_km_s: 7.2 },
+        { id: 8, name: 'Titan IIIC Transtage', size_m: 1.8, risk_level: 'Low', altitude_km: 1100, velocity_km_s: 7.15 },
+        { id: 9, name: 'Delta II Frag #22', size_m: 0.03, risk_level: 'Medium', altitude_km: 680, velocity_km_s: 7.55 },
+        { id: 10, name: 'COSMOS 1408 Frag', size_m: 0.15, risk_level: 'High', altitude_km: 470, velocity_km_s: 7.6 },
+        { id: 11, name: 'Pegasus Debris', size_m: 0.8, risk_level: 'Medium', altitude_km: 650, velocity_km_s: 7.5 },
+        { id: 12, name: 'PSLV Debris', size_m: 1.2, risk_level: 'High', altitude_km: 580, velocity_km_s: 7.55 },
+        { id: 13, name: 'H-IIA Frag', size_m: 0.2, risk_level: 'Low', altitude_km: 800, velocity_km_s: 7.4 },
+        { id: 14, name: 'Falcon 9 Stage 2', size_m: 3.6, risk_level: 'Medium', altitude_km: 400, velocity_km_s: 7.65 },
+        { id: 15, name: 'Briz-M Frag', size_m: 0.4, risk_level: 'High', altitude_km: 1000, velocity_km_s: 7.25 }
+      ];
+      state.predictions = [
+        { id: 1, satellite_name: 'ISS', debris_name: 'COSMOS 2251 Frag', probability: 0.92, miss_distance_km: 1.2, status: 'Critical', time_of_closest_approach: '2025-06-10T14:32:00Z' },
+        { id: 2, satellite_name: 'Starlink-1001', debris_name: 'SL-8 Debris', probability: 0.71, miss_distance_km: 3.8, status: 'Warning', time_of_closest_approach: '2025-06-12T09:15:00Z' },
+        { id: 3, satellite_name: 'GPS IIF-1', debris_name: 'Fengyun-1C Frag', probability: 0.34, miss_distance_km: 8.1, status: 'Monitor', time_of_closest_approach: '2025-06-15T22:00:00Z' },
+        { id: 4, satellite_name: 'Iridium-155', debris_name: 'Iridium Frag #77', probability: 0.85, miss_distance_km: 0.8, status: 'Critical', time_of_closest_approach: '2025-06-08T18:45:00Z' },
+        { id: 5, satellite_name: 'Sentinel-2A', debris_name: 'CZ-4C Debris', probability: 0.58, miss_distance_km: 5.2, status: 'Warning', time_of_closest_approach: '2025-06-20T03:30:00Z' },
+        { id: 6, satellite_name: 'Starlink-2044', debris_name: 'COSMOS 1408 Frag', probability: 0.89, miss_distance_km: 1.5, status: 'Critical', time_of_closest_approach: '2025-06-11T07:22:00Z' },
+        { id: 7, satellite_name: 'Tiangong', debris_name: 'Falcon 9 Stage 2', probability: 0.65, miss_distance_km: 4.1, status: 'Warning', time_of_closest_approach: '2025-06-13T11:10:00Z' },
+        { id: 8, satellite_name: 'Hubble', debris_name: 'Delta II Frag #22', probability: 0.45, miss_distance_km: 6.5, status: 'Monitor', time_of_closest_approach: '2025-06-18T16:40:00Z' },
+        { id: 9, satellite_name: 'OneWeb-0012', debris_name: 'SL-16 R/B', probability: 0.22, miss_distance_km: 12.0, status: 'Monitor', time_of_closest_approach: '2025-06-25T08:00:00Z' },
+        { id: 10, satellite_name: 'Starlink-3051', debris_name: 'Briz-M Frag', probability: 0.95, miss_distance_km: 0.5, status: 'Critical', time_of_closest_approach: '2025-06-09T23:55:00Z' }
+      ];
+      state.alerts = [
+        { id: 1, severity: 'H', message: 'ISS collision probability at 92% — critical threshold exceeded', resolved: false, created_at: '2025-01-15T08:00:00Z' },
+        { id: 2, severity: 'H', message: 'SL-8 debris approaching Starlink constellation', resolved: false, created_at: '2025-01-15T06:30:00Z' },
+        { id: 3, severity: 'M', message: 'Fengyun fragment trajectory updated — monitoring', resolved: false, created_at: '2025-01-14T22:15:00Z' },
+        { id: 4, severity: 'L', message: 'Maui tracking station offline for maintenance', resolved: true, created_at: '2025-01-14T18:00:00Z' },
+        { id: 5, severity: 'H', message: 'Iridium-155 close approach with debris field', resolved: false, created_at: '2025-01-16T11:00:00Z' },
+        { id: 6, severity: 'H', message: 'Starlink-2044 COSMOS 1408 fragment proximity alert', resolved: false, created_at: '2025-01-16T12:30:00Z' },
+        { id: 7, severity: 'M', message: 'AI model OrbitalNet v2.1 updated — revalidating predictions', resolved: false, created_at: '2025-01-16T14:00:00Z' },
+        { id: 8, severity: 'H', message: 'Tiangong spatial anomaly detected — possible conjunction', resolved: false, created_at: '2025-01-17T09:15:00Z' },
+        { id: 9, severity: 'L', message: 'New AI model deployed for debris tracking', resolved: true, created_at: '2025-01-17T10:00:00Z' },
+        { id: 10, severity: 'M', message: 'Solar flare activity increasing drag on LEO satellites', resolved: false, created_at: '2025-01-18T12:45:00Z' }
+      ];
+      state.aiModels = [
+        { id: 1, name: 'OrbitalNet v2.1', type: 'Collision Prediction', accuracy: 94.7, status: 'Active' },
+        { id: 2, name: 'DebrisTracker Pro', type: 'Debris Classification', accuracy: 89.2, status: 'Active' },
+        { id: 3, name: 'ProximityGuard AI', type: 'Satellite-to-Satellite', accuracy: 91.5, status: 'Active' },
+        { id: 4, name: 'SolarDrag Estimator', type: 'Atmospheric Drag', accuracy: 88.4, status: 'Active' },
+        { id: 5, name: 'LaunchTrajectory AI', type: 'Launch Conjunction', accuracy: 96.1, status: 'Active' }
+      ];
+      state.organizations = [
+        { id: 1, name: 'NASA', country: 'USA' }, { id: 2, name: 'SpaceX', country: 'USA' },
+        { id: 3, name: 'ESA', country: 'Europe' }, { id: 4, name: 'NOAA', country: 'USA' },
+        { id: 5, name: 'Iridium', country: 'USA' }, { id: 6, name: 'USAF', country: 'USA' },
+        { id: 7, name: 'ISRO', country: 'India' }, { id: 8, name: 'JAXA', country: 'Japan' },
+        { id: 9, name: 'Roscosmos', country: 'Russia' }, { id: 10, name: 'CNSA', country: 'China' },
+        { id: 11, name: 'OneWeb', country: 'UK' }, { id: 12, name: 'Planet Labs', country: 'USA' },
+        { id: 13, name: 'Rocket Lab', country: 'USA' }, { id: 14, name: 'Blue Origin', country: 'USA' },
+        { id: 15, name: 'Virgin Galactic', country: 'USA' }
+      ];
+      state.missions = [
+        { id: 1, name: 'Artemis I', objective: 'Uncrewed Moon Orbit', organization: 'NASA', status: 'Completed', start_date: '2022-11-16', end_date: '2022-12-11' },
+        { id: 2, name: 'Starlink Group 4-37', objective: 'Deploy LEO Constellation', organization: 'SpaceX', status: 'Completed', start_date: '2022-12-17', end_date: null },
+        { id: 3, name: 'Sentinel-2 Mission', objective: 'Earth Observation', organization: 'ESA', status: 'Active', start_date: '2015-06-23', end_date: null },
+        { id: 4, name: 'Chandrayaan-3 Mission', objective: 'Lunar Landing', organization: 'ISRO', status: 'Completed', start_date: '2023-07-14', end_date: '2023-08-23' },
+        { id: 5, name: 'James Webb Space Telescope', objective: 'Deep Space Observation', organization: 'NASA', status: 'Active', start_date: '2021-12-25', end_date: null },
+        { id: 6, name: 'Europa Clipper', objective: 'Jupiter Moon Exploration', organization: 'NASA', status: 'Planned', start_date: '2024-10-10', end_date: null },
+        { id: 7, name: 'Crew-7', objective: 'ISS Crew Rotation', organization: 'SpaceX', status: 'Completed', start_date: '2023-08-26', end_date: '2024-03-12' },
+        { id: 8, name: 'Mars Sample Return', objective: 'Return Martian Soil', organization: 'NASA', status: 'Planned', start_date: '2028-06-01', end_date: null }
+      ];
+      state.launchVehicles = [
+        { id: 1, name: 'Falcon 9', manufacturer: 'SpaceX', payload_capacity_kg: 22800, status: 'Active' },
+        { id: 2, name: 'SLS', manufacturer: 'Boeing/NASA', payload_capacity_kg: 95000, status: 'Active' },
+        { id: 3, name: 'Ariane 5', manufacturer: 'Arianespace', payload_capacity_kg: 21000, status: 'Retired' },
+        { id: 4, name: 'LVM3', manufacturer: 'ISRO', payload_capacity_kg: 10000, status: 'Active' },
+        { id: 5, name: 'Atlas V', manufacturer: 'ULA', payload_capacity_kg: 18814, status: 'Active' },
+        { id: 6, name: 'Delta IV Heavy', manufacturer: 'ULA', payload_capacity_kg: 28370, status: 'Active' },
+        { id: 7, name: 'Electron', manufacturer: 'Rocket Lab', payload_capacity_kg: 300, status: 'Active' },
+        { id: 8, name: 'Long March 5', manufacturer: 'CALT', payload_capacity_kg: 25000, status: 'Active' }
+      ];
+      state.launchEvents = [
+        { id: 1, mission_name: 'Artemis I', vehicle_name: 'SLS', launch_site: 'Kennedy Space Center, LC-39B', launch_date: '2022-11-16T06:47:44Z', outcome: 'Success' },
+        { id: 2, mission_name: 'Starlink Group 4-37', vehicle_name: 'Falcon 9', launch_site: 'Kennedy Space Center, LC-39A', launch_date: '2022-12-17T21:32:00Z', outcome: 'Success' },
+        { id: 3, mission_name: 'Sentinel-2 Mission', vehicle_name: 'Ariane 5', launch_site: 'Guiana Space Centre, ELA-3', launch_date: '2015-06-23T01:52:00Z', outcome: 'Success' },
+        { id: 4, mission_name: 'Chandrayaan-3 Mission', vehicle_name: 'LVM3', launch_site: 'Satish Dhawan Space Centre', launch_date: '2023-07-14T09:05:00Z', outcome: 'Success' },
+        { id: 5, mission_name: 'James Webb Space Telescope', vehicle_name: 'Ariane 5', launch_site: 'Guiana Space Centre, ELA-3', launch_date: '2021-12-25T12:20:00Z', outcome: 'Success' },
+        { id: 6, mission_name: 'Crew-7', vehicle_name: 'Falcon 9', launch_site: 'Kennedy Space Center, LC-39A', launch_date: '2023-08-26T07:27:00Z', outcome: 'Success' },
+        { id: 7, mission_name: 'Europa Clipper', vehicle_name: 'Falcon 9', launch_site: 'Kennedy Space Center, LC-39A', launch_date: '2024-10-10T14:00:00Z', outcome: 'Planned' },
+        { id: 8, mission_name: 'Mars Sample Return', vehicle_name: 'SLS', launch_site: 'Kennedy Space Center, LC-39B', launch_date: '2028-06-01T00:00:00Z', outcome: 'Planned' }
+      ];
+      state.maneuvers = [
+        { id: 1, satellite_name: 'ISS', type: 'Debris Avoidance', delta_v: 0.5, planned_time: '2025-06-10T14:00:00Z', status: 'Scheduled' },
+        { id: 2, satellite_name: 'Starlink-1001', type: 'Orbit Maintenance', delta_v: 1.2, planned_time: '2025-06-11T12:00:00Z', status: 'Completed' },
+        { id: 3, satellite_name: 'Iridium-155', type: 'Deorbit Burn', delta_v: 50.0, planned_time: '2025-07-01T00:00:00Z', status: 'Planned' },
+        { id: 4, satellite_name: 'Hubble', type: 'Attitude Adjustment', delta_v: 0.1, planned_time: '2025-06-12T08:30:00Z', status: 'Scheduled' },
+        { id: 5, satellite_name: 'Starlink-2044', type: 'Collision Avoidance', delta_v: 0.8, planned_time: '2025-06-11T06:00:00Z', status: 'Scheduled' },
+        { id: 6, satellite_name: 'Tiangong', type: 'Orbit Raising', delta_v: 2.5, planned_time: '2025-06-15T10:00:00Z', status: 'Planned' }
+      ];
+      state.dataLogs = [
+        { id: 1, satellite_name: 'ISS', log_type: 'Telemetry', data_payload: '{"battery": 95, "temperature": 22}', logged_at: '2025-06-05T10:00:00Z' },
+        { id: 2, satellite_name: 'Hubble', log_type: 'Observation', data_payload: '{"images_captured": 150}', logged_at: '2025-06-05T10:05:00Z' },
+        { id: 3, satellite_name: 'Starlink-1001', log_type: 'Network Status', data_payload: '{"latency_ms": 25, "connections": 1024}', logged_at: '2025-06-05T10:10:00Z' },
+        { id: 4, satellite_name: 'ISS', log_type: 'Life Support', data_payload: '{"oxygen_level": 98, "pressure_kpa": 101}', logged_at: '2025-06-05T10:15:00Z' },
+        { id: 5, satellite_name: 'GOES-16', log_type: 'Weather Data', data_payload: '{"cloud_cover": 45, "storm_warnings": 2}', logged_at: '2025-06-05T10:20:00Z' },
+        { id: 6, satellite_name: 'Starlink-2044', log_type: 'Telemetry', data_payload: '{"battery": 88, "temperature": 18}', logged_at: '2025-06-05T10:25:00Z' }
+      ];
+      state.commLinks = [
+        { id: 1, satellite_name: 'ISS', station_name: 'Maui Space Surveillance', frequency_band: 'Ku-band', status: 'Active' },
+        { id: 2, satellite_name: 'Hubble', station_name: 'Fylingdales', frequency_band: 'S-band', status: 'Active' },
+        { id: 3, satellite_name: 'Starlink-1001', station_name: 'Cape Cod', frequency_band: 'Ka-band', status: 'Active' },
+        { id: 4, satellite_name: 'GOES-16', station_name: 'Eglin AFB', frequency_band: 'X-band', status: 'Active' },
+        { id: 5, satellite_name: 'ISS', station_name: 'Diego Garcia', frequency_band: 'S-band', status: 'Active' },
+        { id: 6, satellite_name: 'Starlink-2044', station_name: 'Tromso Satellite Station', frequency_band: 'Ka-band', status: 'Active' },
+        { id: 7, satellite_name: 'Tiangong', station_name: 'Esrange Space Center', frequency_band: 'Ku-band', status: 'Active' },
+        { id: 8, satellite_name: 'Hubble', station_name: 'Svalbard Satellite Station', frequency_band: 'X-band', status: 'Inactive' }
+      ];
+      state.stations = [
+        { id: 1, name: 'Maui Space Surveillance', latitude: 20.7084, longitude: -156.2570, status: 'Online' },
+        { id: 2, name: 'Fylingdales', latitude: 54.3617, longitude: -0.6697, status: 'Online' },
+        { id: 3, name: 'Cape Cod', latitude: 41.7546, longitude: -70.5392, status: 'Online' },
+        { id: 4, name: 'Diego Garcia', latitude: -7.3195, longitude: 72.4229, status: 'Online' },
+        { id: 5, name: 'Kwajalein', latitude: 8.7167, longitude: 167.7333, status: 'Maintenance' },
+        { id: 6, name: 'Eglin AFB', latitude: 30.5728, longitude: -86.2148, status: 'Online' },
+        { id: 7, name: 'Tromso Satellite Station', latitude: 69.6492, longitude: 18.9553, status: 'Online' },
+        { id: 8, name: 'Svalbard Satellite Station', latitude: 78.2232, longitude: 15.6267, status: 'Online' },
+        { id: 9, name: 'McMurdo Station', latitude: -77.8463, longitude: 166.6682, status: 'Maintenance' },
+        { id: 10, name: 'Esrange Space Center', latitude: 67.8933, longitude: 21.1064, status: 'Online' }
+      ];
+      state.maintenance = [
+        { id: 1, entity_type: 'Tracking Station', entity_id: 5, description: 'Replaced main antenna actuator', maintenance_date: '2025-06-01T08:00:00Z' },
+        { id: 2, entity_type: 'Launch Vehicle', entity_id: 1, description: 'Engine inspection post-flight', maintenance_date: '2025-05-20T14:00:00Z' },
+        { id: 3, entity_type: 'Tracking Station', entity_id: 9, description: 'Winterization procedures completed', maintenance_date: '2025-04-15T09:30:00Z' },
+        { id: 4, entity_type: 'AI Model', entity_id: 1, description: 'Retrained with latest collision dataset', maintenance_date: '2025-06-02T11:00:00Z' }
+      ];
+      updateHUD();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // API / Firestore connectivity
+    // ═══════════════════════════════════════════════════════════
+    async function apiCall(method, path, body) {
+      // Always use the most up-to-date token
+      const currentToken = window._authToken || localStorage.getItem('og_token') || token;
+      try {
+        const opts = {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {})
+          }
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const r = await fetch(API + path, opts);
+        if (r.status === 401) {
+          // Token expired or invalid — clear it
+          localStorage.removeItem('og_token');
+          window._authToken = '';
+          token = '';
+          return null;
+        }
+        if (!r.ok) return null;
+        return await r.json();
+      } catch { return null; }
+    }
+
+    async function connectFirebase() {
+      setDBStatus('connecting');
+
+      // Sync token from login handler in case it was set after page load
+      token = window._authToken || localStorage.getItem('og_token') || token;
+
+      // Try health check first to see if backend is reachable
+      let backendOnline = false;
+      try {
+        const h = await fetch('http://localhost:5000/health', { signal: AbortSignal.timeout(3000) });
+        if (h.ok) {
+          backendOnline = true;
+          const health = await h.json();
+          const isFirestore = health.mode === 'Firestore';
+
+          if (token) {
+            // We have a token from login — use it to load data
+            const testRes = await apiCall('GET', '/satellites');
+            if (testRes !== null) {
+              state.dbConnected = true;
+              await loadAllFromDB();
+              setDBStatus(isFirestore ? 'connected' : 'api-only');
+              if (isFirestore) {
+                toast('🔥 Firestore connected! Data syncing live.', 's');
+              } else {
+                toast('API online — Firestore not configured (add FIREBASE_SERVICE_ACCOUNT to .env)', 'w');
+              }
+              if (!state.satellites.length) seedData();
+              renderTab();
+              return;
+            }
+          }
+
+          // Backend up but no valid token yet (will get one on login)
+          setDBStatus(isFirestore ? 'api-only' : 'offline');
+          toast('Backend ready — log in to sync data with ' + health.mode, 'i');
+        }
+      } catch (_) { /* backend not reachable */ }
+
+      if (!backendOnline) {
+        setDBStatus('offline');
+        toast('Backend offline — running on local demo data. Start backend-server.js to connect Firestore.', 'w');
+      }
+
+      if (!state.dbConnected) seedData();
+      renderTab();
+    }
+
+    let lastFetchedDataHash = '';
+    async function loadAllFromDB() {
+      const [sats, deb, pred, alts, missions, lv, le, man, dl, cl, maint, orgs] = await Promise.all([
+        apiCall('GET', '/satellites'), apiCall('GET', '/debris'),
+        apiCall('GET', '/predictions'), apiCall('GET', '/alerts'),
+        apiCall('GET', '/missions'), apiCall('GET', '/launch-vehicles'),
+        apiCall('GET', '/launch-events'), apiCall('GET', '/maneuvers'),
+        apiCall('GET', '/data-logs'), apiCall('GET', '/comm-links'),
+        apiCall('GET', '/maintenance'), apiCall('GET', '/organizations'),
+      ]);
+
+      const currentHash = JSON.stringify({ sats, deb, pred, alts, missions, lv, le, man, dl, cl, maint, orgs });
+      let changed = false;
+      if (currentHash !== lastFetchedDataHash) {
+        changed = true;
+        lastFetchedDataHash = currentHash;
+      } else {
+        return; // No changes in DB, skip updating state and re-rendering
+      }
+
+      if (sats) {
+        state.satellites = sats.map(s => {
+          const existing = state.satellites.find(es => es.id === s.id);
+          return {
+            ...s,
+            color: orbitColor(s.orbit_type),
+            angle: existing?.angle ?? Math.random() * Math.PI * 2,
+            orbitTilt: existing?.orbitTilt ?? (Math.random() - 0.5) * Math.PI
+          };
+        });
+        state.dbConnected = true;
+      }
+      if (deb) {
+        state.debris = deb.map(d => {
+          const existing = state.debris.find(ed => ed.id === d.id);
+          return {
+            ...d,
+            angle: existing?.angle,
+            orbitTilt: existing?.orbitTilt
+          };
+        });
+      }
+      if (pred) state.predictions = pred;
+      if (alts) state.alerts = alts;
+      if (missions) state.missions = missions;
+      if (lv) state.launchVehicles = lv;
+      if (le) state.launchEvents = le;
+      if (man) state.maneuvers = man;
+      if (dl) state.dataLogs = dl;
+      if (cl) state.commLinks = cl;
+      if (maint) state.maintenance = maint;
+      if (orgs) state.organizations = orgs;
+
+      updateHUD();
+
+      // If data changed, safely update the current tab if user isn't typing
+      if (changed) {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+        if (!isInputFocused) {
+          renderTab();
+        }
+      }
+    }
+
+    function setDBStatus(st) {
+      const dot = document.getElementById('db-status-dot');
+      const txt = document.getElementById('db-status-text');
+      if (st === 'connected') { dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 5px var(--green)'; txt.style.color = 'var(--green)'; txt.textContent = 'Firestore ✓ Connected'; state.dbConnected = true; }
+      else if (st === 'api-only') { dot.style.background = 'var(--amber)'; txt.style.color = 'var(--amber)'; txt.textContent = 'API Online · DB Pending'; }
+      else if (st === 'offline') { dot.style.background = 'var(--red)'; txt.style.color = 'var(--red)'; txt.textContent = 'Offline — Demo Mode'; }
+      else { dot.style.background = 'var(--amber)'; txt.textContent = 'Firestore: Connecting...'; txt.style.color = 'var(--muted)'; }
+    }
+
+    function orbitColor(o) { return { LEO: '#00d4ff', MEO: '#b060ff', GEO: '#ffb300', SSO: '#00ff9d', HEO: '#ff4455' }[o] || '#ffffff'; }
+
+    // ═══════════════════════════════════════════════════════════
+    // CANVAS / 3D EARTH SIMULATION
+    // ═══════════════════════════════════════════════════════════
+    const canvas = document.getElementById('earth-canvas');
+    const ctx = canvas.getContext('2d');
+    let animId, W, H, cx, cy, earthR;
+    let mouseX = 0, mouseY = 0, hoveredSat = null;
+    const SPEED = { LEO: 0.00008, MEO: 0.000018, GEO: 0.0000047, SSO: 0.000075, HEO: 0.000035 };
+
+    // Realistic orbital velocities in km/s per orbit type
+    const ORBITAL_VELOCITY = { LEO: 7.8, MEO: 3.9, GEO: 3.07, SSO: 7.5, HEO: 5.5 };
+
+    // Globe interaction state
+    let isDragging = false, dragStartX = 0, dragStartY = 0, dragStartRot = 0;
+    let manualRotX = 0, manualRotY = 0, dragStartRotY = 0;
+    let autoRotate = true, autoRotateTimer = null;
+    let zoomLevel = 1.0;
+    const MIN_ZOOM = 0.5;
+    const MAX_ZOOM = 3.5;
+    let isSimTestRunning = false;
+
+    // AI Collision Avoidance System — only satellites get slowed (not debris)
+    // Also supports satellite-to-satellite proximity alerts
+    let collisionSpeedModifiers = {}; // { satName: { factor, phase, aiStatus, targetSpeed } }
+    let aiLog = []; // Recent AI decisions
+
+    function resize() {
+      W = canvas.width = canvas.offsetWidth * devicePixelRatio;
+      H = canvas.height = canvas.offsetHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      W /= devicePixelRatio; H /= devicePixelRatio;
+      cx = W / 2; cy = H / 2;
+      earthR = Math.min(W, H) * 0.28 * zoomLevel;
+    }
+
+    // Canvas zoom listener
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const zoomAmount = e.deltaY > 0 ? 0.9 : 1.1;
+      zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel * zoomAmount));
+      resize(); // Recalculate earthR
+    }, { passive: false });
+
+    // Project 3D point on sphere to 2D with perspective
+    function project3D(lat, lon, r) {
+      const x = r * Math.cos(lat) * Math.sin(lon + state.earthRot);
+      const y = r * Math.sin(lat);
+      const z = r * Math.cos(lat) * Math.cos(lon + state.earthRot);
+      return { x: cx + x, y: cy - y, z, visible: z > -r * 0.2 };
+    }
+
+    // Get satellite screen position from orbit params
+    function satPosition(sat) {
+      const baseR = earthR + altToR(sat.altitude_km);
+      const a = sat.angle || 0;
+      const tilt = sat.orbitTilt || 0;
+      const incl = ((sat.inclination || 0) * Math.PI / 180);
+
+      // Orbit in tilted plane
+      const x3 = baseR * Math.cos(a);
+      const y3 = baseR * Math.sin(a) * Math.cos(incl);
+      const z3 = baseR * Math.sin(a) * Math.sin(incl);
+
+      // Rotate by earth rotation
+      const rot = state.earthRot * 0.3;
+      const xr = x3 * Math.cos(rot) - z3 * Math.sin(rot);
+      const zr = x3 * Math.sin(rot) + z3 * Math.cos(rot);
+
+      return { sx: cx + xr, sy: cy - y3, z: zr, visible: true, behind: zr < -baseR * 0.15 };
+    }
+
+    function altToR(alt) { return Math.sqrt(alt / 400) * earthR * 0.55; }
+
+    function drawEarth() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+
+      // Atmospheric glow
+      const atmGrad = ctx.createRadialGradient(cx, cy, earthR * 0.92, cx, cy, earthR * 1.25);
+      atmGrad.addColorStop(0, isLight ? 'rgba(59,158,255,0.15)' : 'rgba(50,150,255,0.2)');
+      atmGrad.addColorStop(0.5, isLight ? 'rgba(59,158,255,0.06)' : 'rgba(20,80,200,0.08)');
+      atmGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = atmGrad;
+      ctx.beginPath(); ctx.arc(cx, cy, earthR * 1.25, 0, Math.PI * 2); ctx.fill();
+
+      // Main sphere body — gradient for 3D depth
+      const sphereGrad = ctx.createRadialGradient(cx - earthR * 0.3, cy - earthR * 0.25, earthR * 0.05, cx, cy, earthR);
+      if (isLight) {
+        sphereGrad.addColorStop(0, '#e0f2fe');
+        sphereGrad.addColorStop(0.3, '#93c5fd');
+        sphereGrad.addColorStop(0.7, '#3b82f6');
+        sphereGrad.addColorStop(1, '#1e3a5f');
+      } else {
+        sphereGrad.addColorStop(0, '#1e4976');
+        sphereGrad.addColorStop(0.3, '#0f3460');
+        sphereGrad.addColorStop(0.7, '#0a1929');
+        sphereGrad.addColorStop(1, '#020a15');
+      }
+      ctx.fillStyle = sphereGrad;
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.fill();
+
+      // Grid lines (latitude/longitude) for a globe feel
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.clip();
+      ctx.strokeStyle = isLight ? 'rgba(30,60,120,0.12)' : 'rgba(80,160,255,0.08)';
+      ctx.lineWidth = 0.7;
+      // Latitude lines
+      for (let lat = -60; lat <= 60; lat += 30) {
+        const y = cy - earthR * Math.sin(lat * Math.PI / 180);
+        const rx = earthR * Math.cos(lat * Math.PI / 180);
+        ctx.beginPath(); ctx.ellipse(cx, y, rx, rx * 0.15, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      // Longitude lines — rotate with globe
+      for (let lon = 0; lon < 180; lon += 30) {
+        const angle = (lon * Math.PI / 180) + state.earthRot;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, earthR * Math.abs(Math.cos(angle)), earthR, angle, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Specular highlight (makes sphere look 3D)
+      const specGrad = ctx.createRadialGradient(cx - earthR * 0.3, cy - earthR * 0.3, 0, cx, cy, earthR * 0.8);
+      specGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
+      specGrad.addColorStop(0.5, 'rgba(255,255,255,0.03)');
+      specGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = specGrad;
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.fill();
+
+      // Night shadow on right side
+      const shadowGrad = ctx.createLinearGradient(cx - earthR, cy, cx + earthR, cy);
+      shadowGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      shadowGrad.addColorStop(0.55, 'rgba(0,0,0,0)');
+      shadowGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
+      ctx.fillStyle = shadowGrad;
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.fill();
+
+      // Border glow
+      ctx.strokeStyle = isLight ? 'rgba(59,158,255,0.25)' : 'rgba(80,160,255,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    function drawContinents() {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.clip();
+
+      // Simplified continent drawing based on rotation
+      const landColor = 'rgba(40,90,50,0.6)';
+      const desertColor = 'rgba(140,110,60,0.5)';
+      const rot = state.earthRot % (Math.PI * 2);
+
+      ctx.fillStyle = landColor;
+
+      // North America region
+      drawLandMass(cx, cy, earthR, rot, -1.0, 0.7, 0.22, 0.30, landColor);
+      drawLandMass(cx, cy, earthR, rot, -0.9, 0.3, 0.15, 0.18, desertColor);
+      // South America
+      drawLandMass(cx, cy, earthR, rot, -0.8, -0.3, 0.12, 0.22, landColor);
+      // Europe/Africa
+      drawLandMass(cx, cy, earthR, rot, 0.15, 0.5, 0.12, 0.15, landColor);
+      drawLandMass(cx, cy, earthR, rot, 0.2, 0.0, 0.13, 0.25, desertColor);
+      // Asia
+      drawLandMass(cx, cy, earthR, rot, 0.5, 0.4, 0.30, 0.22, landColor);
+      // Australia
+      drawLandMass(cx, cy, earthR, rot, 0.75, -0.3, 0.10, 0.10, desertColor);
+
+      ctx.restore();
+    }
+
+    function drawLandMass(cx, cy, r, rot, lonFrac, latFrac, wFrac, hFrac, color) {
+      const lon = lonFrac * Math.PI + rot;
+      const x = cx + Math.cos(lon) * r * (1 - Math.abs(latFrac) * 0.3) * 0.98;
+      const y = cy - latFrac * r * 0.98;
+      const depth = Math.cos(lon);
+      if (depth < -0.2) return; // behind earth
+      const alpha = Math.min(1, (depth + 0.2) / 0.6);
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * wFrac * Math.abs(depth + 0.3), r * hFrac, lon * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawClouds() {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, earthR, 0, Math.PI * 2); ctx.clip();
+      const cloudRot = state.earthRot * 1.1;
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = 'rgba(220,235,255,1)';
+      const clouds = [
+        [0.3, 0.6, 0.18, 0.04], [-0.5, 0.2, 0.14, 0.03],
+        [0.8, -0.1, 0.12, 0.03], [-0.9, 0.5, 0.16, 0.04],
+        [0.0, -0.4, 0.20, 0.05], [1.5, 0.3, 0.13, 0.03],
+      ];
+      clouds.forEach(([lon, lat, w, h]) => {
+        const lx = cx + Math.cos(lon + cloudRot) * earthR * 0.99 * Math.cos(lat);
+        const ly = cy - lat * earthR * 0.98;
+        const d = Math.cos(lon + cloudRot);
+        if (d < 0) return;
+        ctx.globalAlpha = d * 0.25;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, earthR * w * d, earthR * h, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    function drawOrbit(sat) {
+      if (!state.showOrbits) return;
+      const r = earthR + altToR(sat.altitude_km);
+      const incl = (sat.inclination || 0) * Math.PI / 180;
+      const rot = state.earthRot * 0.3;
+
+      ctx.save();
+      ctx.strokeStyle = sat.color + '30';
+      ctx.lineWidth = sat.id === state.selectedSat?.id ? 1.2 : 0.5;
+      if (sat.id === state.selectedSat?.id) ctx.strokeStyle = sat.color + '70';
+
+      ctx.beginPath();
+      for (let t = 0; t <= Math.PI * 2; t += 0.05) {
+        const x3 = r * Math.cos(t);
+        const y3 = r * Math.sin(t) * Math.cos(incl);
+        const z3 = r * Math.sin(t) * Math.sin(incl);
+        const xr = x3 * Math.cos(rot) - z3 * Math.sin(rot);
+        const zr = x3 * Math.sin(rot) + z3 * Math.cos(rot);
+        const px = cx + xr, py = cy - y3;
+        // Fade behind earth
+        const alpha = zr > -r * 0.15 ? 1 : 0.15;
+        if (t === 0) { ctx.moveTo(px, py); }
+        else { ctx.lineTo(px, py); }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSatellite(sat) {
+      const pos = satPosition(sat);
+      if (!pos.visible) return null;
+
+      const isSelected = state.selectedSat?.id === sat.id;
+      const isHovered = hoveredSat?.id === sat.id;
+      const r = isSelected || isHovered ? 6 : 4;
+
+      // Reduce opacity for satellites behind the globe
+      ctx.save();
+      if (pos.behind) ctx.globalAlpha = 0.35;
+
+      // Glow
+      if (isSelected || isHovered) {
+        const glow = ctx.createRadialGradient(pos.sx, pos.sy, 0, pos.sx, pos.sy, r * 3);
+        glow.addColorStop(0, sat.color + '60');
+        glow.addColorStop(1, 'transparent');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(pos.sx, pos.sy, r * 3, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Satellite body
+      ctx.fillStyle = sat.status === 'Active' ? sat.color : '#888888';
+      ctx.beginPath(); ctx.arc(pos.sx, pos.sy, r, 0, Math.PI * 2); ctx.fill();
+
+      // Solar panels (tiny cross)
+      if (isSelected || isHovered || r > 3) {
+        ctx.strokeStyle = sat.color + 'aa';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pos.sx - r * 2, pos.sy); ctx.lineTo(pos.sx + r * 2, pos.sy);
+        ctx.moveTo(pos.sx, pos.sy - r * 0.8); ctx.lineTo(pos.sx, pos.sy + r * 0.8);
+        ctx.stroke();
+      }
+
+      // Label
+      if (isSelected || isHovered) {
+        ctx.fillStyle = sat.color;
+        ctx.font = `600 11px 'Inter'`;
+        ctx.fillText(sat.name, pos.sx + r * 1.5, pos.sy - r);
+      }
+
+      ctx.restore();
+      return pos;
+    }
+
+    function drawDebrisField() {
+      if (!state.showDebris) return;
+      state.debris.forEach((d, i) => {
+        let a = d.angle !== undefined ? d.angle : (Date.now() * 0.00003 * (1 + i * 0.15) + i * 2.1);
+        if (d.angle !== undefined) {
+          d.angle += 0.00008 * state.simSpeed;
+        }
+        const r = earthR + altToR(d.altitude_km);
+        const tilt = d.orbitTilt !== undefined ? d.orbitTilt : (i * 0.7) % Math.PI;
+
+        if (d.angle !== undefined) {
+          const x3 = r * Math.cos(a);
+          const y3 = r * Math.sin(a) * Math.cos(tilt);
+          const z3 = r * Math.sin(a) * Math.sin(tilt);
+          const rot = state.earthRot * 0.3;
+          const xr = x3 * Math.cos(rot) - z3 * Math.sin(rot);
+          const zr = x3 * Math.sin(rot) + z3 * Math.cos(rot);
+          if (zr < -r * 0.15) return;
+          const c = d.risk_level === 'High' ? '#ff4455' : d.risk_level === 'Medium' ? '#ffb300' : '#00ff9d';
+          ctx.fillStyle = c + 'cc';
+          ctx.beginPath(); ctx.arc(cx + xr, cy - y3, 1.8, 0, Math.PI * 2); ctx.fill();
+        } else {
+          const x = cx + r * Math.cos(a) * 0.97;
+          const y = cy - r * Math.sin(a) * Math.cos(tilt) * 0.9;
+          const z = r * Math.sin(a) * Math.sin(tilt);
+          if (z < -r * 0.3) return;
+          const c = d.risk_level === 'High' ? '#ff4455' : d.risk_level === 'Medium' ? '#ffb300' : '#00ff9d';
+          ctx.fillStyle = c + '99';
+          ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+    }
+
+    function drawCollisionAlerts() {
+      state.predictions.filter(p => p.probability > 0.7).forEach(p => {
+        const sat = state.satellites.find(s => s.name === p.satellite_name || s.id === p.satellite_id);
+        if (!sat) return;
+        const pos = satPosition(sat);
+        if (!pos.visible) return;
+        const pulse = (Math.sin(Date.now() * 0.004) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(255,68,85,${0.3 + pulse * 0.5})`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.arc(pos.sx, pos.sy, 10 + pulse * 6, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    // Compute real-time speed for a satellite considering AI collision avoidance
+    function getSatSpeed(sat) {
+      const baseVel = ORBITAL_VELOCITY[sat.orbit_type] || 7.8;
+      const mod = collisionSpeedModifiers[sat.name];
+      if (mod) {
+        // AI gradually slows satellite toward target speed
+        const targetFactor = mod.targetFactor || 0.2;
+        // Smoothly interpolate current factor toward target
+        mod.factor = mod.factor + (targetFactor - mod.factor) * 0.02;
+        return +(baseVel * mod.factor).toFixed(2);
+      }
+      return baseVel;
+    }
+
+    function getDebrisSpeed(deb) {
+      return deb.velocity_km_s || 7.4;
+    }
+
+    // AI Collision Avoidance — detects threats, slows ONLY satellites
+    function updateCollisionModifiers() {
+      const activeSats = new Map(); // satName -> { probability, threatType, threatName }
+
+      // 1. Satellite-to-debris collision alerts
+      state.predictions.filter(p => p.probability > 0.5).forEach(p => {
+        const satName = p.satellite_name;
+        if (satName) {
+          const existing = activeSats.get(satName);
+          if (!existing || p.probability > existing.probability) {
+            activeSats.set(satName, {
+              probability: p.probability,
+              threatType: 'debris',
+              threatName: p.debris_name || 'unknown debris'
+            });
+          }
+        }
+      });
+
+      // 2. Satellite-to-satellite proximity detection
+      for (let i = 0; i < state.satellites.length; i++) {
+        for (let j = i + 1; j < state.satellites.length; j++) {
+          const a = state.satellites[i], b = state.satellites[j];
+          const altDiff = Math.abs((a.altitude_km || 550) - (b.altitude_km || 550));
+          const angleDiff = Math.abs(((a.angle || 0) - (b.angle || 0)) % (Math.PI * 2));
+          const proximity = angleDiff < 0.3 && altDiff < 100;
+          if (proximity) {
+            const prob = Math.max(0.6, 1 - angleDiff * 2 - altDiff / 500);
+            [a, b].forEach(sat => {
+              const otherName = sat === a ? b.name : a.name;
+              const existing = activeSats.get(sat.name);
+              if (!existing || prob > existing.probability) {
+                activeSats.set(sat.name, {
+                  probability: prob,
+                  threatType: 'satellite',
+                  threatName: otherName
+                });
+              }
+            });
+          }
+        }
+      }
+
+      // 3. Apply AI decisions — slow satellites proportional to threat level
+      activeSats.forEach((threat, name) => {
+        if (!collisionSpeedModifiers[name]) {
+          // AI initiates slowdown
+          collisionSpeedModifiers[name] = {
+            factor: 1, // Current speed factor (starts at 100%)
+            targetFactor: 1,
+            aiStatus: 'detecting',
+            threatType: threat.threatType,
+            threatName: threat.threatName,
+            probability: threat.probability
+          };
+          const logMsg = `AI detecting ${threat.threatType} threat near ${name} (${(threat.probability * 100).toFixed(0)}%)`;
+          aiLog.unshift({ time: Date.now(), msg: logMsg });
+          if (aiLog.length > 10) aiLog.pop();
+        }
+        const mod = collisionSpeedModifiers[name];
+        mod.probability = threat.probability;
+        mod.threatType = threat.threatType;
+        mod.threatName = threat.threatName;
+
+        // AI decision: higher threat = more slowdown
+        if (threat.probability > 0.8) {
+          mod.targetFactor = 0.1; // Near-stop (critical)
+          mod.aiStatus = 'emergency_brake';
+        } else if (threat.probability > 0.6) {
+          mod.targetFactor = 0.3; // Heavy slowdown
+          mod.aiStatus = 'slowing';
+        } else {
+          mod.targetFactor = 0.6; // Mild slowdown
+          mod.aiStatus = 'caution';
+        }
+      });
+
+      // 4. Remove modifiers for satellites no longer in danger — gradually restore speed
+      Object.keys(collisionSpeedModifiers).forEach(name => {
+        if (!activeSats.has(name)) {
+          const mod = collisionSpeedModifiers[name];
+          mod.targetFactor = 1.0; // Restore to full speed
+          mod.aiStatus = 'restoring';
+          if (mod.factor > 0.95) {
+            delete collisionSpeedModifiers[name]; // Fully restored
+          }
+        }
+      });
+    }
+
+    // Draw velocity label near a satellite
+    function drawSpeedLabel(sat, pos) {
+      const isSelected = state.selectedSat?.id === sat.id;
+      const isHovered = hoveredSat?.id === sat.id;
+      if (!isSelected && !isHovered) return;
+      const speed = getSatSpeed(sat);
+      const mod = collisionSpeedModifiers[sat.name];
+      const color = mod ? (mod.factor < 0.3 ? '#ef4444' : mod.factor < 0.6 ? '#f59e0b' : sat.color) : sat.color;
+      ctx.font = `600 10px 'Inter'`;
+      ctx.fillStyle = color;
+      ctx.fillText(`${speed} km/s`, pos.sx + 10, pos.sy + 14);
+      if (mod) {
+        const statusText = {
+          'emergency_brake': '🛑 AI: Emergency Brake',
+          'slowing': '⚠️ AI: Slowing Down',
+          'caution': '⚡ AI: Caution',
+          'detecting': '🔍 AI: Detecting...',
+          'restoring': '✅ AI: Restoring Speed'
+        }[mod.aiStatus] || '⚠️ Alert';
+        ctx.fillStyle = mod.factor < 0.3 ? '#ef4444cc' : '#f59e0bcc';
+        ctx.font = `600 9px 'Inter'`;
+        ctx.fillText(statusText, pos.sx + 10, pos.sy + 26);
+      }
+    }
+
+    function draw() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      // Clear with theme-appropriate background
+      ctx.fillStyle = isLight ? '#f1f5f9' : '#0a0f1e';
+      ctx.fillRect(0, 0, W, H);
+
+      // Draw subtle stars in dark mode
+      if (!isLight) {
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        for (let i = 0; i < 80; i++) {
+          const sx = (Math.sin(i * 127.1 + 42) * 0.5 + 0.5) * W;
+          const sy = (Math.sin(i * 311.7 + 42) * 0.5 + 0.5) * H;
+          const sr = (Math.sin(i * 91.3) * 0.5 + 0.5) * 1;
+          ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      // Earth rotation — only auto-rotate when not dragging
+      if (autoRotate) {
+        state.earthRot += 0.00015 * state.simSpeed;
+      }
+
+      // Update AI collision avoidance
+      updateCollisionModifiers();
+
+      // Advance satellite angles — AI slows only satellites, debris keeps constant speed
+      state.satellites.forEach(sat => {
+        const baseSpd = SPEED[sat.orbit_type] || SPEED.LEO;
+        const mod = collisionSpeedModifiers[sat.name];
+        let spdFactor = 1;
+        if (mod) {
+          getSatSpeed(sat); // updates mod.factor
+          spdFactor = mod.factor;
+        }
+        sat.angle = (sat.angle || 0) + baseSpd * state.simSpeed * spdFactor;
+      });
+
+      drawEarth();
+      if (state.showOrbits) state.satellites.forEach(drawOrbit);
+      drawDebrisField();
+
+      if (isSimTestRunning) {
+        const pulse = (Math.sin(Date.now() * 0.01) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(255, 68, 85, ${1 - pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, earthR * 1.3 + pulse * 120, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      state.satellites.forEach(sat => {
+        const pos = drawSatellite(sat);
+        if (pos) drawSpeedLabel(sat, pos);
+      });
+      drawCollisionAlerts();
+
+      animId = requestAnimationFrame(draw);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // MOUSE INTERACTION — Drag to rotate globe + hover/click
+    // ═══════════════════════════════════════════════════════════
+    let dragMoved = false;
+
+    canvas.addEventListener('mousedown', e => {
+      const rect = canvas.getBoundingClientRect();
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragStartRot = state.earthRot;
+      isDragging = true;
+      dragMoved = false;
+      autoRotate = false;
+      if (autoRotateTimer) clearTimeout(autoRotateTimer);
+      canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+
+      // Drag rotation
+      if (isDragging) {
+        const dx = e.clientX - dragStartX;
+        if (Math.abs(dx) > 3) dragMoved = true;
+        state.earthRot = dragStartRot + dx * 0.005;
+        return; // Skip hover detection while dragging
+      }
+
+      // Hover detection
+      hoveredSat = null;
+      state.satellites.forEach(sat => {
+        const pos = satPosition(sat);
+        if (!pos.visible) return;
+        const dx = mouseX - pos.sx, dy = mouseY - pos.sy;
+        if (Math.sqrt(dx * dx + dy * dy) < 10) hoveredSat = sat;
+      });
+
+      const tip = document.getElementById('sat-tooltip');
+      if (hoveredSat) {
+        const speed = getSatSpeed(hoveredSat);
+        const mod = collisionSpeedModifiers[hoveredSat.name];
+        tip.style.display = 'block';
+        tip.style.left = (mouseX + 14) + 'px';
+        tip.style.top = (mouseY - 10) + 'px';
+        document.getElementById('tt-name').textContent = hoveredSat.name;
+        document.getElementById('tt-orbit').textContent = hoveredSat.orbit_type;
+        document.getElementById('tt-alt').textContent = hoveredSat.altitude_km + ' km';
+        document.getElementById('tt-status').textContent = hoveredSat.status;
+        document.getElementById('tt-org').textContent = hoveredSat.organization || '—';
+        document.getElementById('tt-speed').textContent = speed + ' km/s';
+        document.getElementById('tt-speed').style.color = mod ? '#ff4455' : 'var(--text)';
+      } else { tip.style.display = 'none'; }
+      canvas.style.cursor = hoveredSat ? 'pointer' : 'grab';
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      isDragging = false;
+      canvas.style.cursor = hoveredSat ? 'pointer' : 'grab';
+      // Resume auto-rotation after 3 seconds of no dragging
+      if (autoRotateTimer) clearTimeout(autoRotateTimer);
+      autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+      document.getElementById('sat-tooltip').style.display = 'none';
+      if (autoRotateTimer) clearTimeout(autoRotateTimer);
+      autoRotateTimer = setTimeout(() => { autoRotate = true; }, 1500);
+    });
+
+    canvas.addEventListener('click', e => {
+      if (dragMoved) return; // Don't select satellite if user was dragging
+      if (hoveredSat) {
+        state.selectedSat = state.selectedSat?.id === hoveredSat.id ? null : hoveredSat;
+        if (state.selectedSat) { switchTab('sim'); renderTab(); }
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // HUD
+    // ═══════════════════════════════════════════════════════════
+    function updateHUD() {
+      document.getElementById('hs-sats').textContent = state.satellites.filter(s => s.status === 'Active').length;
+      document.getElementById('hs-debris').textContent = state.debris.length;
+      document.getElementById('hs-alerts').textContent = state.alerts.filter(a => !a.resolved).length;
+      document.getElementById('hs-pred').textContent = state.predictions.length;
+    }
+
+    function clockTick() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata' });
+      document.getElementById('hud-time').textContent = `${timeString} IST`;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TAB RENDERING
+    // ═══════════════════════════════════════════════════════════
+    function switchTab(t) {
+      state.tab = t;
+      document.querySelectorAll('.stab').forEach((el, i) => {
+        el.classList.toggle('active', ['sim', 'sats', 'debris', 'pred', 'alerts', 'more', 'db'][i] === t);
+      });
+      renderTab();
+    }
+
+    function renderTab() {
+      const c = document.getElementById('sidebar-content');
+      switch (state.tab) {
+        case 'sim': c.innerHTML = renderSim(); break;
+        case 'sats': c.innerHTML = renderSats(); break;
+        case 'debris': c.innerHTML = renderDebris(); break;
+        case 'pred': c.innerHTML = renderPred(); break;
+        case 'alerts': c.innerHTML = renderAlerts(); break;
+        case 'more': c.innerHTML = renderMore(); break;
+        case 'db': c.innerHTML = renderDB(); break;
+      }
+      bindTabEvents();
+    }
+
+    // ── SIM TAB ──────────────────────────────────────────────
+    function renderSim() {
+      return `
+  <div class="section-head">SIMULATION CONTROLS</div>
+  <div class="card">
+    <div class="card-title">Speed</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input type="range" id="speed-slider" min="0.1" max="50" step="0.1" value="${state.simSpeed}"
+        style="flex:1;accent-color:var(--cyan)" oninput="state.simSpeed=+this.value;document.getElementById('speed-display').textContent=parseFloat(this.value).toFixed(1)+'x'">
+      <span id="speed-display">${state.simSpeed.toFixed(1)}x</span>
+    </div>
+    <div class="ctrl-row">
+      <button class="btn btn-cyan btn-sm" onclick="state.showOrbits=!state.showOrbits;toast('Orbits '+(state.showOrbits?'ON':'OFF'),'i')">Toggle Orbits</button>
+      <button class="btn btn-cyan btn-sm" onclick="state.showDebris=!state.showDebris;toast('Debris '+(state.showDebris?'ON':'OFF'),'i')">Toggle Debris</button>
+    </div>
+    <div class="ctrl-row" style="margin-top:8px">
+      <button class="btn btn-red btn-sm" onclick="runSimTest()">⚠ SIMULATION TEST</button>
+    </div>
+    <div class="ctrl-row" style="margin-top:8px">
+      <button class="btn btn-cyan btn-sm" onclick="zoomOutAll()">Zoom Out (All)</button>
+      <button class="btn btn-cyan btn-sm" onclick="zoomInFocus()">Zoom In (Focus)</button>
+    </div>
+  </div>
+
+  <div class="section-head">SELECTED SATELLITE</div>
+  <div class="card" id="sel-sat-card">
+    ${state.selectedSat ? `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${state.selectedSat.color};flex-shrink:0"></div>
+      <span style="font-family:var(--hud);font-size:12px;color:var(--cyan)">${state.selectedSat.name}</span>
+    </div>
+    <div class="istat"><span class="k">Orbit Type</span><span class="v c">${state.selectedSat.orbit_type}</span></div>
+    <div class="istat"><span class="k">Altitude</span><span class="v">${state.selectedSat.altitude_km} km</span></div>
+    <div class="istat"><span class="k">Orbital Velocity</span><span class="v c">${getSatSpeed(state.selectedSat)} km/s</span></div>
+    <div class="istat"><span class="k">Inclination</span><span class="v">${state.selectedSat.inclination}°</span></div>
+    <div class="istat"><span class="k">Organization</span><span class="v">${state.selectedSat.organization || '—'}</span></div>
+    <div class="istat"><span class="k">Status</span><span class="v ${state.selectedSat.status === 'Active' ? 'g' : 'r'}">${state.selectedSat.status}</span></div>
+    <div class="istat"><span class="k">NORAD ID</span><span class="v">${state.selectedSat.norad_id || '—'}</span></div>
+    ${collisionSpeedModifiers[state.selectedSat.name] ? '<div class="istat"><span class="k">⚠ Collision Alert</span><span class="v r">SPEED VARYING</span></div>' : ''}
+    <button class="btn btn-red" style="margin-top:8px" onclick="deleteSat(${state.selectedSat.id})">Remove Satellite</button>
+    ` : '<div class="empty">Click a satellite on the globe to inspect it</div>'}
+  </div>
+
+  <div class="section-head">QUICK STATS</div>
+  <div class="card">
+    <div class="istat"><span class="k">Active Satellites</span><span class="v c">${state.satellites.filter(s => s.status === 'Active').length}</span></div>
+    <div class="istat"><span class="k">Total Debris</span><span class="v r">${state.debris.length}</span></div>
+    <div class="istat"><span class="k">High-Risk Debris</span><span class="v r">${state.debris.filter(d => d.risk_level === 'High').length}</span></div>
+    <div class="istat"><span class="k">Active Alerts</span><span class="v a">${state.alerts.filter(a => !a.resolved).length}</span></div>
+    <div class="istat"><span class="k">Critical Predictions</span><span class="v r">${state.predictions.filter(p => p.probability > 0.8).length}</span></div>
+    <div class="istat"><span class="k">LEO Objects</span><span class="v">${state.satellites.filter(s => s.orbit_type === 'LEO').length}</span></div>
+    <div class="istat"><span class="k">GEO Objects</span><span class="v">${state.satellites.filter(s => s.orbit_type === 'GEO').length}</span></div>
+  </div>`;
+    }
+
+    // ── SATELLITES TAB ───────────────────────────────────────
+    function renderSats() {
+      const orbitBadge = o => `<span class="sat-badge b-${o.toLowerCase()}">${o}</span>`;
+      return `
+  <div class="section-head">ADD SATELLITE</div>
+  <div class="card">
+    <div class="fgroup"><label>Name</label><input id="f-sat-name" placeholder="e.g. Starlink-9999"></div>
+    <div class="fgroup"><label>NORAD ID</label><input id="f-sat-norad" placeholder="Optional"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fgroup"><label>Orbit</label>
+        <select id="f-sat-orbit"><option>LEO</option><option>MEO</option><option>GEO</option><option>SSO</option><option>HEO</option></select></div>
+      <div class="fgroup"><label>Status</label>
+        <select id="f-sat-status"><option>Active</option><option>Inactive</option><option>Decommissioned</option></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fgroup"><label>Altitude (km)</label><input id="f-sat-alt" type="number" placeholder="550"></div>
+      <div class="fgroup"><label>Inclination (°)</label><input id="f-sat-incl" type="number" placeholder="53"></div>
+    </div>
+    <div class="fgroup"><label>Organization</label><input id="f-sat-org" placeholder="SpaceX, NASA..."></div>
+    <button class="btn btn-cyan" onclick="addSatellite()">⊕ ADD TO ORBIT</button>
+  </div>
+
+  <div class="section-head">SATELLITES (${state.satellites.length})</div>
+  ${state.satellites.map(s => `
+  <div class="sat-item ${state.selectedSat?.id === s.id ? 'selected' : ''}" onclick="selectSat(${s.id})">
+    <div class="sat-dot" style="background:${s.color};box-shadow:0 0 5px ${s.color}44"></div>
+    <div style="flex:1;min-width:0">
+      <div class="sat-name" style="color:${s.color}">${s.name}</div>
+      <div class="sat-meta">${s.altitude_km}km · ${ORBITAL_VELOCITY[s.orbit_type] || 7.8} km/s · ${s.organization || '—'}</div>
+    </div>
+    ${orbitBadge(s.orbit_type)}
+    <span class="sat-badge" style="color:${s.status === 'Active' ? 'var(--green)' : 'var(--red)'};background:${s.status === 'Active' ? 'rgba(0,255,157,0.1)' : 'rgba(255,68,85,0.1)'};border:1px solid ${s.status === 'Active' ? 'rgba(0,255,157,0.25)' : 'rgba(255,68,85,0.25)'}">${s.status[0]}</span>
+  </div>`).join('')}`;
+    }
+
+    // ── DEBRIS TAB ───────────────────────────────────────────
+    function renderDebris() {
+      return `
+  <div class="section-head">LOG NEW DEBRIS</div>
+  <div class="card">
+    <div class="fgroup"><label>Designation</label><input id="f-deb-name" placeholder="e.g. SL-24 Frag #12"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fgroup"><label>Size (m)</label><input id="f-deb-size" type="number" step="0.01" placeholder="0.10"></div>
+      <div class="fgroup"><label>Risk</label>
+        <select id="f-deb-risk"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fgroup"><label>Altitude (km)</label><input id="f-deb-alt" type="number" placeholder="780"></div>
+      <div class="fgroup"><label>Velocity (km/s)</label><input id="f-deb-vel" type="number" step="0.1" placeholder="7.4"></div>
+    </div>
+    <button class="btn btn-cyan" onclick="addDebris()">⊕ LOG OBJECT</button>
+  </div>
+
+  <div class="section-head">DEBRIS CATALOGUE (${state.debris.length})</div>
+  ${state.debris.map(d => `
+  <div class="card" style="padding:9px;margin-bottom:7px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <span style="font-size:12px;font-weight:600">${d.name}</span>
+      <span class="risk-${d.risk_level[0]}" style="font-family:var(--mono);font-size:10px">${d.risk_level.toUpperCase()}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:11px">
+      <div style="color:var(--muted)">Size<br><span style="color:var(--text);font-family:var(--mono)">${d.size_m}m</span></div>
+      <div style="color:var(--muted)">Alt<br><span style="color:var(--text);font-family:var(--mono)">${d.altitude_km}km</span></div>
+      <div style="color:var(--muted)">Vel<br><span style="color:var(--text);font-family:var(--mono)">${d.velocity_km_s}km/s</span></div>
+    </div>
+  </div>`).join('')}`;
+    }
+
+    // ── PREDICTIONS TAB ──────────────────────────────────────
+    function renderPred() {
+      const probColor = p => p > 0.8 ? 'var(--red)' : p > 0.5 ? 'var(--amber)' : p > 0.3 ? 'var(--cyan)' : 'var(--green)';
+      return `
+  <div class="section-head">COMPUTE COLLISION</div>
+  <div class="card">
+    <div class="fgroup"><label>Satellite</label>
+      <select id="f-pred-sat">
+        <option value="">Select satellite…</option>
+        ${state.satellites.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+      </select></div>
+    <div class="fgroup"><label>Debris Object</label>
+      <select id="f-pred-deb">
+        <option value="">Select debris…</option>
+        ${state.debris.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+      </select></div>
+    <div class="fgroup"><label>Time of Closest Approach</label>
+      <input id="f-pred-tca" type="datetime-local"></div>
+    <button class="btn btn-cyan" onclick="runPrediction()">⚡ COMPUTE PROBABILITY</button>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Auto-generates Critical Alert if prob &gt; 80%</div>
+  </div>
+
+  <div class="section-head">PREDICTION HISTORY (${state.predictions.length})</div>
+  ${state.predictions.map(p => `
+  <div class="card" style="padding:9px;margin-bottom:7px">
+    <div style="font-size:11px;margin-bottom:6px">
+      <span style="color:var(--cyan);font-family:var(--mono)">${p.satellite_name}</span>
+      <span style="color:var(--muted)"> ↔ </span>
+      <span>${p.debris_name}</span>
+    </div>
+    <div class="prob-wrap">
+      <div class="prob-bar"><div class="prob-fill" style="width:${p.probability * 100}%;background:${probColor(p.probability)}"></div></div>
+      <span class="prob-val" style="color:${probColor(p.probability)}">${(p.probability * 100).toFixed(0)}%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px">
+      <span style="color:var(--muted)">Miss: <span style="color:var(--text);font-family:var(--mono)">${p.miss_distance_km} km</span></span>
+      <span class="tag" style="background:${p.probability > 0.8 ? 'rgba(255,68,85,0.15)' : p.probability > 0.5 ? 'rgba(255,179,0,0.15)' : 'rgba(0,212,255,0.15)'};color:${probColor(p.probability)}">${p.status}</span>
+    </div>
+  </div>`).join('')}`;
+    }
+
+    // ── ALERTS TAB ───────────────────────────────────────────
+    function renderAlerts() {
+      const active = state.alerts.filter(a => !a.resolved);
+      const resolved = state.alerts.filter(a => a.resolved);
+      return `
+  <div class="section-head">ACTIVE ALERTS (${active.length})</div>
+  ${active.length === 0 ? '<div class="empty">✓ No active alerts</div>' : ''}
+  ${active.map(a => `
+  <div class="alert-item ${a.severity}">
+    <div class="alert-sev">${a.severity === 'H' ? '▲ HIGH' : a.severity === 'M' ? '◆ MEDIUM' : '● LOW'}</div>
+    <div style="font-size:12px;margin-bottom:5px">${a.message}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">${new Date(a.created_at).toLocaleDateString()}</span>
+      <button class="btn btn-green btn-sm" onclick="resolveAlert(${a.id})">✓ Resolve</button>
+    </div>
+  </div>`).join('')}
+
+  <div class="section-head" style="margin-top:12px">RESOLVED (${resolved.length})</div>
+  ${resolved.map(a => `
+  <div class="alert-item ${a.severity}" style="opacity:.45">
+    <div class="alert-sev">${a.severity === 'H' ? '▲ HIGH' : a.severity === 'M' ? '◆ MEDIUM' : '● LOW'} ✓</div>
+    <div style="font-size:12px">${a.message}</div>
+  </div>`).join('')}`;
+    }
+
+    // ── MORE TAB ──────────────────────────────────────────────
+    function renderMore() {
+      return `
+  <div class="section-head">ORGANIZATIONS (${state.organizations.length})</div>
+  <div class="card" style="padding:8px; margin-bottom:8px">
+    <div style="display:flex; gap:6px; align-items:center;">
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-org-name" placeholder="Org Name" style="padding:6px; font-size:11px"></div>
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-org-country" placeholder="Country" style="padding:6px; font-size:11px"></div>
+      <button class="btn btn-cyan btn-sm" style="height:27px; padding:0 12px" onclick="addEntity('org')">⊕</button>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:16px">
+    ${state.organizations.map(o => `
+    <div class="card" style="margin-bottom:0; padding:8px">
+      <div style="font-family:var(--hud);font-size:11px;color:var(--cyan)">${o.name}</div>
+      <div style="font-size:9px;color:var(--muted)">${o.country || '—'}</div>
+    </div>`).join('')}
+  </div>
+
+  <div class="section-head">MISSIONS (${state.missions.length})</div>
+  <div class="card" style="padding:8px; margin-bottom:8px">
+    <div style="display:flex; gap:6px; align-items:center;">
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-mis-name" placeholder="Mission Name" style="padding:6px; font-size:11px"></div>
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-mis-org" placeholder="Organization" style="padding:6px; font-size:11px"></div>
+      <button class="btn btn-cyan btn-sm" style="height:27px; padding:0 12px" onclick="addEntity('mission')">⊕</button>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-bottom:16px">
+    ${state.missions.map(m => `
+    <div class="card" style="margin-bottom:0; padding:8px; display:flex; justify-content:space-between">
+      <div>
+        <div style="font-family:var(--hud);font-size:11px;color:var(--cyan)">🚀 ${m.name}</div>
+        <div style="font-size:9px;color:var(--muted)">${m.organization || '—'}</div>
+      </div>
+      <div style="text-align:right">
+        <span class="tag" style="background:${m.status === 'Active' ? 'rgba(0,255,157,0.1)' : 'rgba(0,212,255,0.1)'};color:${m.status === 'Active' ? 'var(--green)' : 'var(--cyan)'}">${m.status}</span>
+      </div>
+    </div>`).join('')}
+  </div>
+
+  <div class="section-head">LAUNCH VEHICLES (${state.launchVehicles.length})</div>
+  <div class="card" style="padding:8px; margin-bottom:8px">
+    <div style="display:flex; gap:6px; align-items:center;">
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-lv-name" placeholder="Vehicle Name" style="padding:6px; font-size:11px"></div>
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-lv-mfg" placeholder="Manufacturer" style="padding:6px; font-size:11px"></div>
+      <button class="btn btn-cyan btn-sm" style="height:27px; padding:0 12px" onclick="addEntity('lv')">⊕</button>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:16px">
+    ${state.launchVehicles.map(v => `
+    <div class="card" style="margin-bottom:0; padding:8px">
+      <div style="font-family:var(--hud);font-size:11px;color:var(--amber)">🔧 ${v.name}</div>
+      <div style="font-size:9px;color:var(--muted)">${v.manufacturer || '—'}</div>
+    </div>`).join('')}
+  </div>
+  
+  <div class="section-head">MANEUVERS (${state.maneuvers.length})</div>
+  <div class="card" style="padding:8px; margin-bottom:8px">
+    <div style="display:flex; gap:6px; align-items:center;">
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-man-sat" placeholder="Satellite" style="padding:6px; font-size:11px"></div>
+      <div class="fgroup" style="flex:1; margin:0"><input id="f-man-type" placeholder="Type (e.g. Orbit Raise)" style="padding:6px; font-size:11px"></div>
+      <button class="btn btn-cyan btn-sm" style="height:27px; padding:0 12px" onclick="addEntity('man')">⊕</button>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-bottom:16px">
+    ${state.maneuvers.map(m => `
+    <div class="card" style="margin-bottom:0; padding:8px; display:flex; justify-content:space-between">
+      <div>
+        <div style="font-family:var(--hud);font-size:11px;color:var(--purple)">🔄 ${m.type}</div>
+        <div style="font-size:9px;color:var(--muted)">${m.satellite_name || 'Sat #' + m.satellite_id}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px; color:var(--text); font-family:var(--mono)">ΔV: ${m.delta_v} m/s</div>
+        <span class="tag" style="background:${m.status === 'Completed' ? 'rgba(0,255,157,0.1)' : 'rgba(255,179,0,0.1)'};color:${m.status === 'Completed' ? 'var(--green)' : 'var(--amber)'}">${m.status}</span>
+      </div>
+    </div>`).join('')}
+  </div>
+
+  <div class="section-head">ALERT GENERATION LOGIC</div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;line-height:1.6;color:var(--text)">
+      <p style="margin:0 0 6px"><b style="color:var(--cyan)">How alerts are generated:</b></p>
+      <p style="margin:0 0 4px">1. <b style="color:var(--red)">Satellite ↔ Debris:</b> When a satellite and debris share similar altitude (within 100 km) AND angular proximity (&lt;0.25 rad), a collision probability is computed. If prob &gt; 0.8 → <span style="color:#ef4444">Critical Alert</span>.</p>
+      <p style="margin:0 0 4px">2. <b style="color:var(--amber)">Satellite ↔ Satellite:</b> Same logic between any two satellites. If prob &gt; 0.6 → <span style="color:#f59e0b">Warning</span>.</p>
+      <p style="margin:0 0 4px">3. <b style="color:var(--green)">AI Response:</b> OrbitalNet v2.1 detects threats and engages Emergency Brake (prob &gt; 0.8), Slowing (prob &gt; 0.6), or Caution mode. Satellite speed is reduced proportionally.</p>
+      <p style="margin:0">4. <b style="color:var(--purple)">Restoration:</b> Once objects separate beyond thresholds, AI gradually restores satellite speed to 100%.</p>
+    </div>
+  </div>
+  `;
+    }
+
+    async function addEntity(type) {
+      if (type === 'org') {
+        const name = document.getElementById('f-org-name')?.value?.trim();
+        const country = document.getElementById('f-org-country')?.value?.trim();
+        if (!name) return toast('Organization name required', 'e');
+        const org = { id: Date.now(), name, country };
+        state.organizations.push(org);
+        if (state.dbConnected) await apiCall('POST', '/organizations', org);
+        toast(`Organization ${name} added`, 's');
+      } else if (type === 'mission') {
+        const name = document.getElementById('f-mis-name')?.value?.trim();
+        const org = document.getElementById('f-mis-org')?.value?.trim();
+        if (!name) return toast('Mission name required', 'e');
+        const mission = { id: Date.now(), name, organization: org, status: 'Active', start_date: new Date().toISOString() };
+        state.missions.push(mission);
+        if (state.dbConnected) await apiCall('POST', '/missions', mission);
+        toast(`Mission ${name} added`, 's');
+      } else if (type === 'lv') {
+        const name = document.getElementById('f-lv-name')?.value?.trim();
+        const mfg = document.getElementById('f-lv-mfg')?.value?.trim();
+        if (!name) return toast('Vehicle name required', 'e');
+        const lv = { id: Date.now(), name, manufacturer: mfg, status: 'Active' };
+        state.launchVehicles.push(lv);
+        if (state.dbConnected) await apiCall('POST', '/launch-vehicles', lv);
+        toast(`Launch Vehicle ${name} added`, 's');
+      } else if (type === 'man') {
+        const sat = document.getElementById('f-man-sat')?.value?.trim();
+        const mtype = document.getElementById('f-man-type')?.value?.trim();
+        if (!sat || !mtype) return toast('Satellite and type required', 'e');
+        const man = { id: Date.now(), satellite_name: sat, type: mtype, delta_v: 1.5, status: 'Scheduled', planned_time: new Date(Date.now() + 86400000).toISOString() };
+        state.maneuvers.push(man);
+        if (state.dbConnected) await apiCall('POST', '/maneuvers', man);
+        toast(`Maneuver scheduled for ${sat}`, 's');
+      }
+      renderTab();
+    }
+
+    // ── DB TAB ───────────────────────────────────────────────
+    function renderDB() {
+      const userList = Object.entries(USERS).map(([uname, u]) => `
+    <div class="istat">
+      <span class="k" style="font-family:var(--mono)">${uname}</span>
+      <span class="v" style="font-size:10px;color:${u.role === 'admin' ? 'var(--amber)' : 'var(--cyan)'}">${u.role.toUpperCase()}</span>
+    </div>`).join('');
+
+      const connStatus = state.dbConnected ? '🟢 Firestore Connected' : '🔴 Offline (Demo Mode)';
+      const connColor  = state.dbConnected ? 'var(--green)' : 'var(--red)';
+
+      return `
+  <div class="section-head">FIREBASE STATUS</div>
+  <div class="card">
+    <div class="istat"><span class="k">Connection</span><span class="v" style="color:${connColor}">${connStatus}</span></div>
+    <div class="istat"><span class="k">Backend URL</span><span class="v" style="font-family:var(--mono);font-size:10px">http://localhost:5000</span></div>
+    <div class="istat"><span class="k">Mode</span><span class="v" style="font-size:10px">${state.dbConnected ? 'Cloud Firestore (persistent)' : 'In-Memory (resets on restart)'}</span></div>
+    <button class="btn btn-cyan" style="margin-top:10px" onclick="connectFirebase()">⟳ RECONNECT</button>
+  </div>
+
+  <div class="section-head">🔥 FIREBASE SETUP GUIDE</div>
+  <div class="card" style="font-size:11px;line-height:1.8">
+    <div style="color:var(--cyan);font-weight:600;margin-bottom:6px">Step 1 — Create Firebase Project</div>
+    <div style="color:var(--muted)">→ Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--cyan)">console.firebase.google.com</a></div>
+    <div style="color:var(--muted)">→ Click <b style="color:var(--text)">"Add project"</b> → Name it <b style="color:var(--text)">orbital-guardian</b></div>
+    <div style="color:var(--muted)">→ Click through to <b style="color:var(--text)">Create project</b></div>
+
+    <div style="color:var(--cyan);font-weight:600;margin:10px 0 6px">Step 2 — Enable Firestore</div>
+    <div style="color:var(--muted)">→ In Firebase console: <b style="color:var(--text)">Build → Firestore Database</b></div>
+    <div style="color:var(--muted)">→ Click <b style="color:var(--text)">Create database → Start in test mode → Done</b></div>
+
+    <div style="color:var(--cyan);font-weight:600;margin:10px 0 6px">Step 3 — Get Service Account Key</div>
+    <div style="color:var(--muted)">→ In Firebase console: <b style="color:var(--text)">⚙ Project Settings → Service Accounts</b></div>
+    <div style="color:var(--muted)">→ Click <b style="color:var(--text)">Generate new private key</b> → Download JSON</div>
+    <div style="color:var(--muted)">→ Open the downloaded JSON file and copy all content</div>
+
+    <div style="color:var(--cyan);font-weight:600;margin:10px 0 6px">Step 4 — Paste into .env</div>
+    <div style="color:var(--muted);font-family:var(--mono);font-size:10px">Open <b style="color:var(--amber)">.env</b> in the project folder and paste the JSON on one line after:</div>
+    <div style="background:rgba(0,30,60,0.8);border:1px solid var(--border);border-radius:4px;padding:6px 8px;margin-top:4px;font-family:var(--mono);font-size:9px;color:var(--green);word-break:break-all">FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}</div>
+
+    <div style="color:var(--cyan);font-weight:600;margin:10px 0 6px">Step 5 — Start the backend</div>
+    <div style="background:rgba(0,30,60,0.8);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-family:var(--mono);font-size:10px;color:var(--amber)">node backend-server.js</div>
+    <div style="color:var(--muted);margin-top:4px">You should see: <b style="color:var(--green)">✓ Firestore connected and ready</b></div>
+  </div>
+
+  <div class="section-head">REGISTERED USERS (${Object.keys(USERS).length})</div>
+  <div class="card">
+    ${userList}
+  </div>
+
+  <div class="section-head">RUN AI SIMULATION</div>
+  <div class="card">
+    <div class="fgroup"><label>AI Model</label>
+      <select id="f-sim-model">
+        ${state.aiModels.map(function (m) { return '<option value="' + m.id + '">' + m.name + ' (' + m.accuracy + '%)</option>'; }).join('')}
+      </select></div>
+    <button class="btn btn-cyan" onclick="runSimulation()">▶ RUN SIMULATION</button>
+  </div>
+
+  <div class="section-head">FIRESTORE COLLECTIONS</div>
+  <div class="card">
+    ${['users', 'satellites', 'space_debris', 'collision_predictions', 'alerts', 'tracking_stations', 'ai_models', 'simulations', 'data_logs', 'organizations', 'missions', 'launch_vehicles', 'maneuvers', 'communication_links', 'maintenance_records'].map(function (t) { return '<div class="istat"><span class="k" style="font-family:var(--mono)">' + t + '</span><span class="v ' + (state.dbConnected ? 'g' : 'a') + '">' + (state.dbConnected ? '✓ Live' : '◌ Local') + '</span></div>'; }).join('')}
+  </div>`;
+    }
+
+    function updateDBConfig() {
+      const sa = document.getElementById('firebase-sa');
+      if (sa) FIREBASE_CFG.serviceAccount = sa.value.trim();
+      // Update bottom bar display
+      document.querySelector('#db-bar span:last-child').textContent = `cloud Firestore · orbital-guardian`;
+      toast('Firebase config updated', 's');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════════════════
+    function selectSat(id) {
+      state.selectedSat = state.satellites.find(s => s.id === id) || null;
+      renderTab();
+    }
+
+    async function addSatellite() {
+      const name = document.getElementById('f-sat-name')?.value?.trim();
+      if (!name) { toast('Satellite name required', 'e'); return; }
+      const sat = {
+        id: Date.now(),
+        name,
+        norad_id: document.getElementById('f-sat-norad')?.value || '',
+        orbit_type: document.getElementById('f-sat-orbit')?.value || 'LEO',
+        status: document.getElementById('f-sat-status')?.value || 'Active',
+        altitude_km: parseFloat(document.getElementById('f-sat-alt')?.value) || 550,
+        inclination: parseFloat(document.getElementById('f-sat-incl')?.value) || 53,
+        organization: document.getElementById('f-sat-org')?.value || '',
+        angle: Math.random() * Math.PI * 2,
+        orbitTilt: (Math.random() - 0.5) * Math.PI,
+      };
+      sat.color = orbitColor(sat.orbit_type);
+      state.satellites.push(sat);
+
+      // Try save to backend
+      if (state.dbConnected) {
+        const res = await apiCall('POST', '/satellites', sat);
+        if (res) { sat.id = res.id || sat.id; toast('Saved to Firestore', 's'); }
+        else toast(`${sat.name} added to simulation`, 'i');
+      } else { toast(`${sat.name} launched into orbit`, 's'); }
+
+      updateHUD(); renderTab();
+    }
+
+    async function deleteSat(id) {
+      state.satellites = state.satellites.filter(s => s.id !== id);
+      if (state.selectedSat?.id === id) state.selectedSat = null;
+      if (state.dbConnected) await apiCall('DELETE', `/satellites/${id}`);
+      toast('Satellite removed', 'i');
+      updateHUD(); renderTab();
+    }
+
+    async function addDebris() {
+      const name = document.getElementById('f-deb-name')?.value?.trim();
+      if (!name) { toast('Debris designation required', 'e'); return; }
+      const deb = {
+        id: Date.now(),
+        name,
+        size_m: parseFloat(document.getElementById('f-deb-size')?.value) || 0.1,
+        risk_level: document.getElementById('f-deb-risk')?.value || 'Medium',
+        altitude_km: parseFloat(document.getElementById('f-deb-alt')?.value) || 780,
+        velocity_km_s: parseFloat(document.getElementById('f-deb-vel')?.value) || 7.4,
+      };
+      state.debris.push(deb);
+      if (state.dbConnected) await apiCall('POST', '/debris', deb);
+      toast(`${name} logged in catalogue`, 's');
+      updateHUD(); renderTab();
+    }
+
+    async function runPrediction() {
+      const satId = document.getElementById('f-pred-sat')?.value;
+      const debId = document.getElementById('f-pred-deb')?.value;
+      if (!satId || !debId) { toast('Select satellite and debris object', 'e'); return; }
+
+      const sat = state.satellites.find(s => s.id == satId);
+      const deb = state.debris.find(d => d.id == debId);
+
+      // Mock probability (OrbitalNet algorithm simulation)
+      const prob = Math.round((Math.random() * 0.95 + 0.05) * 100) / 100;
+      const miss = +(Math.random() * 20 + 0.5).toFixed(1);
+      const status = prob > 0.8 ? 'Critical' : prob > 0.5 ? 'Warning' : prob > 0.3 ? 'Monitor' : 'Low Risk';
+
+      const pred = {
+        id: Date.now(),
+        satellite_name: sat?.name || `Sat#${satId}`,
+        debris_name: deb?.name || `Debris#${debId}`,
+        probability: prob,
+        miss_distance_km: miss,
+        status,
+        time_of_closest_approach: document.getElementById('f-pred-tca')?.value || new Date(Date.now() + 7 * 86400000).toISOString(),
+      };
+      state.predictions.unshift(pred);
+
+      if (prob > 0.8) {
+        const alert = { id: Date.now() + 1, severity: 'H', message: `CRITICAL: ${sat?.name} — ${(prob * 100).toFixed(0)}% collision probability with ${deb?.name}`, resolved: false, created_at: new Date().toISOString(), pred_id: pred.id };
+        state.alerts.unshift(alert);
+        toast(`🚨 CRITICAL ALERT generated! ${(prob * 100).toFixed(0)}% collision risk`, 'e');
+      } else {
+        toast(`Prediction complete: ${(prob * 100).toFixed(0)}% probability`, prob > 0.5 ? 'w' : 'i');
+      }
+
+      if (state.dbConnected) await apiCall('POST', '/predictions', { satellite_id: satId, debris_id: debId, time_of_closest_approach: pred.time_of_closest_approach });
+      updateHUD(); renderTab();
+    }
+
+    async function resolveAlert(id) {
+      const alert = state.alerts.find(a => a.id === id);
+      if (alert) {
+        alert.resolved = true;
+        alert.resolved_at = new Date().toISOString();
+        state.predictions = state.predictions.filter(p => {
+          if (alert.pred_id && p.id === alert.pred_id) return false;
+          if (alert.message.includes(p.satellite_name) && p.probability > 0.8) return false;
+          return true;
+        });
+      }
+      if (state.dbConnected) await apiCall('PATCH', `/alerts/${id}/resolve`);
+      toast('Alert resolved', 's');
+      updateHUD(); renderTab();
+    }
+
+    async function runSimulation() {
+      const modelId = document.getElementById('f-sim-model')?.value;
+      const model = state.aiModels.find(m => m.id == modelId);
+      toast(`Running ${model?.name || 'AI Model'}…`, 'i');
+      await new Promise(r => setTimeout(r, 1800));
+      if (state.dbConnected) await apiCall('POST', '/simulations/run', { model_id: modelId });
+      const results = ['3 conjunctions detected in next 14 days', 'No critical events in forecast window', 'Debris field updated — 12 new objects tracked'];
+      toast(`Simulation complete: ${results[Math.floor(Math.random() * results.length)]}`, 's');
+    }
+
+    function bindTabEvents() { /* event delegation handled by onclick */ }
+
+    // ═══════════════════════════════════════════════════════════
+    // TOAST
+    // ═══════════════════════════════════════════════════════════
+    function toast(msg, type = 'i') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      const icon = { s: '✓', e: '✕', i: 'ℹ', w: '⚠' }[type] || '';
+      el.innerHTML = `${icon}<span>${msg}</span>`;
+      document.getElementById('toast-area').appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════════════════
+
+    function runSimTest() {
+      if (isSimTestRunning) return;
+      isSimTestRunning = true;
+
+      // ─── Two satellites on clearly DIFFERENT crossing orbits ──────────────────
+      // Alpha: prograde orbit, tilted upward — starts on the LEFT of the globe
+      const satAlpha = {
+        id: 9001, name: 'SIM-Alpha', orbit_type: 'LEO', status: 'Active',
+        altitude_km: 520, inclination: 30, color: '#00d4ff',
+        angle: Math.PI,    // left side of globe
+        orbitTilt: 0.52,   // angled upward-right
+        organization: 'SIM'
+      };
+
+      // Beta: retrograde crossing orbit, tilted downward — starts on the RIGHT
+      const satBeta = {
+        id: 9002, name: 'SIM-Beta', orbit_type: 'LEO', status: 'Active',
+        altitude_km: 525, inclination: 150, color: '#ff9900',
+        angle: 0,           // right side of globe
+        orbitTilt: -0.52,   // angled downward-left — CROSSING Alpha's path
+        organization: 'SIM'
+      };
+
+      state.satellites.push(satAlpha, satBeta);
+      zoomInFocus();
+      toast('SIM TEST: SIM-Alpha & SIM-Beta on crossing orbits — tracking approach', 'i');
+
+      // ─── Phase state ──────────────────────────────────────────────────────────
+      let phase = 'approaching';
+      let alertMonId = null, alertWarnId = null, alertCritId = null, predId = null;
+      const oldSpeed = state.simSpeed;
+
+      state.simSpeed = 3;
+      const sliderEl = document.getElementById('speed-slider');
+      const dispEl = document.getElementById('speed-display');
+      if (sliderEl) sliderEl.value = 3;
+      if (dispEl) dispEl.textContent = '3.0x';
+
+      // ─── Watch interval: monitor angular proximity every 250ms ────────────────
+      const watchInterval = setInterval(() => {
+        if (!isSimTestRunning) { clearInterval(watchInterval); return; }
+
+        let aDiff = Math.abs(satAlpha.angle - satBeta.angle) % (Math.PI * 2);
+        if (aDiff > Math.PI) aDiff = Math.PI * 2 - aDiff;
+
+        // MONITOR — satellites are getting close
+        if (aDiff < 2.0 && phase === 'approaching') {
+          phase = 'monitor';
+          alertMonId = Date.now();
+          predId = alertMonId + 1;
+          state.predictions.unshift({
+            id: predId, satellite_name: 'SIM-Alpha', debris_name: 'SIM-Beta',
+            probability: 0.32, miss_distance_km: 12.4, status: 'Monitor'
+          });
+          state.alerts.unshift({
+            id: alertMonId, severity: 'L',
+            message: 'MONITOR: SIM-Alpha & SIM-Beta crossing orbits converging — separation ' + (aDiff * 57.3).toFixed(0) + '°',
+            resolved: false, created_at: new Date().toISOString(), pred_id: predId
+          });
+          toast('🔍 MONITOR: SIM-Alpha & SIM-Beta are converging…', 'i');
+          updateHUD();
+        }
+
+        // WARNING — much closer
+        if (aDiff < 0.8 && phase === 'monitor') {
+          phase = 'warning';
+          const pred = state.predictions.find(p => p.id === predId);
+          if (pred) { pred.probability = 0.71; pred.miss_distance_km = 3.2; pred.status = 'Warning'; }
+          alertWarnId = Date.now();
+          state.alerts.unshift({
+            id: alertWarnId, severity: 'M',
+            message: 'WARNING: SIM-Alpha & SIM-Beta — miss distance 3.2 km and closing. Collision window in 90s.',
+            resolved: false, created_at: new Date().toISOString(), pred_id: predId
+          });
+          toast('⚠️ PROXIMITY WARNING: SIM-Alpha & SIM-Beta closing fast!', 'w');
+          const hud = document.getElementById('hud-top');
+          hud.style.background = 'rgba(245,158,11,0.35)';
+          setTimeout(() => { hud.style.background = ''; }, 1200);
+          updateHUD();
+        }
+
+        // CRITICAL — imminent
+        if (aDiff < 0.22 && phase === 'warning') {
+          phase = 'critical';
+          const pred = state.predictions.find(p => p.id === predId);
+          if (pred) { pred.probability = 0.97; pred.miss_distance_km = 0.3; pred.status = 'Critical'; }
+          alertCritId = Date.now();
+          state.alerts.unshift({
+            id: alertCritId, severity: 'H',
+            message: 'CRITICAL: SIM-Alpha & SIM-Beta — IMMINENT COLLISION in ~47s! AI EMERGENCY BRAKE ENGAGED on SIM-Alpha!',
+            resolved: false, created_at: new Date().toISOString(), pred_id: predId
+          });
+          toast('🚨 CRITICAL: Collision IMMINENT! AI Emergency Brake ENGAGED!', 'e');
+          const hud = document.getElementById('hud-top');
+          [0, 350, 700, 1050].forEach(d => {
+            setTimeout(() => { hud.style.background = 'rgba(239,68,68,0.45)'; }, d);
+            setTimeout(() => { hud.style.background = ''; }, d + 175);
+          });
+          updateHUD();
+          if (state.tab !== 'sim') switchTab('sim'); else renderTab();
+        }
+
+        // CLEAR — they've passed each other
+        if (aDiff > 1.6 && phase === 'critical') {
+          phase = 'clear';
+          const pred = state.predictions.find(p => p.id === predId);
+          if (pred) { pred.probability = 0.03; pred.miss_distance_km = 19.5; pred.status = 'Low Risk'; }
+          toast('✅ SIM: Satellites passed safely — AI restoring speed', 's');
+          updateHUD(); renderTab();
+        }
+      }, 250);
+
+      // ─── Movement: Beta orbits RETROGRADE so they converge toward angle ~0 ───
+      const moveInterval = setInterval(() => {
+        if (!isSimTestRunning) { clearInterval(moveInterval); return; }
+        satBeta.angle -= SPEED.LEO * state.simSpeed * 1.15;
+      }, 16);
+
+      updateHUD();
+      switchTab('sim');
+
+      // ─── Cleanup after 25 seconds ─────────────────────────────────────────────
+      setTimeout(() => {
+        clearInterval(watchInterval);
+        clearInterval(moveInterval);
+        isSimTestRunning = false;
+
+        state.simSpeed = oldSpeed;
+        if (sliderEl) sliderEl.value = oldSpeed;
+        if (dispEl) dispEl.textContent = oldSpeed.toFixed(1) + 'x';
+
+        state.satellites = state.satellites.filter(s => s.id !== 9001 && s.id !== 9002);
+        state.alerts = state.alerts.filter(a => ![alertMonId, alertWarnId, alertCritId].includes(a.id));
+        state.predictions = state.predictions.filter(p => p.id !== predId);
+        delete collisionSpeedModifiers['SIM-Alpha'];
+        delete collisionSpeedModifiers['SIM-Beta'];
+
+        toast('Simulation test complete — nominal state restored', 'i');
+        updateHUD();
+        renderTab();
+      }, 25000);
+    }
+
+    function zoomOutAll() {
+      zoomLevel = 0.6;
+      resize();
+    }
+
+    function zoomInFocus() {
+      zoomLevel = 1.8;
+      resize();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════
+    window.addEventListener('resize', () => { resize(); });
+    resize();
+
+    // Initial render
+    seedData();
+    renderTab();
+    draw();
+    setInterval(clockTick, 1000);
+    setInterval(updateHUD, 2000);
+
+    // Try DB connection after login (token may already exist from a previous session)
+    setTimeout(connectFirebase, 800);
+
+    // Also reconnect whenever the login overlay hides (i.e., after successful login)
+    const _loginOvObserver = new MutationObserver(() => {
+      const ov = document.getElementById('login-overlay');
+      if (ov && ov.style.display === 'none') {
+        // Sync token from login handler
+        token = window._authToken || localStorage.getItem('og_token') || token;
+        setTimeout(connectFirebase, 400);
+      }
+    });
+    _loginOvObserver.observe(document.getElementById('login-overlay'), { attributes: true, attributeFilter: ['style'] });
+
+    // Poll backend every 5s to keep frontend synced with DB changes
+    setInterval(() => {
+      if (state.dbConnected) {
+        // Sync token in case it changed
+        token = window._authToken || localStorage.getItem('og_token') || token;
+        loadAllFromDB();
+      }
+    }, 5000);
+  </script>
+</body>
+
+</html>

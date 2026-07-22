@@ -1,0 +1,32 @@
+{
+  "name": "orbital-guardian-backend",
+  "version": "1.0.0",
+  "description": "Orbital Guardian - Live Earth Satellite Simulation Backend API",
+  "main": "backend-server.js",
+  "scripts": {
+    "start": "node backend-server.js",
+    "dev": "nodemon backend-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "orbital",
+    "satellite",
+    "mysql",
+    "express",
+    "api"
+  ],
+  "author": "Orbital Guardian",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "firebase-admin": "^11.10.0",
+    "jsonwebtoken": "^9.0.0",
+    "protobufjs": "^7.6.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
